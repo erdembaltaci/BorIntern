@@ -1,0 +1,16 @@
+# Derleme çıktıları (dotnet build her seferinde yeniden üretir)
+bin/
+obj/
+
+# Visual Studio / VS Code yerel ayarları
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Docker/ortam değişkeni secret dosyaları (ileride SA parolası için kullanacağız)
+.env
+.env.*
+
+# İşletim sistemi çöp dosyaları
+Thumbs.db
