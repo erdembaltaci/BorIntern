@@ -28,16 +28,22 @@ Bu proje ile şu fullstack temelleri öğrenilecek:
 
 ### Roller
 
-- `Admin`: Yönetici
-- `Intern`: Stajyer
+- `Intern`: Stajyer — kendi görevlerini görür, günlük not ekler.
+- `Mentor`: Kendi grubunu oluşturur, kendi stajyerlerine görev atar.
+- `Admin`: Kullanıcıları onaylar/pasifleştirir, tüm görev ve grupları yönetir.
+
+### Kullanıcı durumları
+
+- `Pending`: Yeni kayıt olmuş, henüz onaylanmamış.
+- `Active`: Onaylanmış, giriş yapabilir.
+- `Inactive`: Pasifleştirilmiş (soft-delete yerine kullanılıyor).
 
 ### Hesap oluşturma akışı
 
-1. Admin hesabı başlangıçta seed ile oluşturulur.
-2. Stajyer kayıt ekranından hesap oluşturur.
-3. Yeni stajyerin durumu `Pending` olur.
-4. Admin stajyeri onaylar.
-5. Onaylanan stajyer sisteme giriş yapabilir.
+1. Herkes kayıt ekranından hesap oluşturur.
+2. Yeni kullanıcı varsayılan olarak `Intern` + `Pending` olur (kullanıcı kendi rolünü/durumunu seçemez, backend zorla atar).
+3. Admin kullanıcıyı onaylar (`Active` yapar).
+4. `Pending` kullanıcı giriş yapamaz.
 
 Kullanıcı alanları:
 
@@ -45,55 +51,55 @@ Kullanıcı alanları:
 Id, FullName, Email, PasswordHash, Role, Status, CreatedAt
 ```
 
-İlk sürümde `Mentor`, `HR` veya `SuperAdmin` gibi ek roller yapılmayacak.
-
 ## 3. Uygulamanın Temel Özellikleri
 
-### Stajyer
+### Stajyer (Intern)
 
 - Kayıt olma ve giriş yapma
-- Kendi görevlerini görüntüleme
-- Görev oluşturma ve durum güncelleme
+- Kendi görevlerini görüntüleme, durumunu güncelleme (`Todo`/`InProgress`/`Completed`)
 - Günlük staj notu ekleme
 - Kendi profilini görüntüleme
 
+### Mentor
+
+- Kendi gruplarını oluşturma
+- Kendi grubundaki stajyerleri yönetme, görev atama
+- Başka mentorun grubuna/stajyerine işlem yapamaz
+
 ### Admin
 
-- Stajyerleri listeleme
-- Stajyer onaylama veya pasife alma
-- Tüm görevleri görüntüleme
-- Görev ve not kayıtlarını inceleme
+- Kullanıcıları onaylama veya pasifleştirme
+- Tüm görev ve grupları yönetme
 
 ## 4. Veri Modelleri
 
 ### User
 
-- `Id`
-- `FullName`
-- `Email`
-- `PasswordHash`
-- `Role`
-- `Status`
-- `CreatedAt`
+- `Id`, `FullName`, `Email`, `PasswordHash`, `Role`, `Status`, `CreatedAt`
+- Soft delete kullanılmıyor — pasifleştirme `Status = Inactive` ile yapılıyor.
 
-### Task
+### Group
 
-- `Id`
-- `Title`
-- `Description`
-- `Status`
-- `DueDate`
-- `UserId`
-- `CreatedAt`
+- `Id`, `Name`, `MentorId`, `CreatedAt`
+- Soft delete: `IsDeleted`, `DeletedAt`
+
+### GroupMember
+
+- `Id`, `GroupId`, `UserId`, `JoinedAt`
+- Soft delete: `IsDeleted`, `DeletedAt`
+- `GroupId` + `UserId` birleşik unique index
+
+### TaskItem
+
+- `Id`, `Title`, `Description`, `Status`, `DueDate`, `AssignedUserId`, `CreatedByUserId`, `CreatedAt`
+- Soft delete: `IsDeleted`, `DeletedAt`
 
 ### InternshipNote
 
-- `Id`
-- `Content`
-- `NoteDate`
-- `UserId`
+- `Id`, `Content`, `NoteDate`, `UserId`, `CreatedAt`
+- Soft delete: `IsDeleted`, `DeletedAt`
 
-İlişki: Bir kullanıcı birçok görev ve staj notuna sahip olabilir.
+İlişki: Bir mentor birçok grup oluşturabilir; bir grubun birçok üyesi (stajyeri) olabilir; bir kullanıcı birçok göreve ve staj notuna sahip olabilir.
 
 ## 5. Proje Yapısı
 
@@ -103,10 +109,11 @@ BorBlog/
 │   ├── Controllers/
 │   ├── Data/
 │   ├── Entities/
-│   ├── DTOs/
+│   ├── Dtos/
 │   ├── Services/
+│   ├── Migrations/
 │   └── Program.cs
-├── Frontend/
+├── Frontend/            (henüz oluşturulmadı)
 │   └── src/app/
 │       ├── core/
 │       ├── shared/
@@ -234,11 +241,22 @@ Stajyer kayıt olur
 ## 9. Şimdilik Yapılmayacaklar
 
 - Mikroservis
-- Docker
 - Redis
-- SignalR
-- Çok seviyeli rol sistemi
 - Gelişmiş raporlama
 - Dosya yükleme
 
 Önce küçük ama uçtan uca çalışan sistemi tamamla; daha sonra özellik ekle.
+
+RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bir demo olarak ele alınacak (MQTT ana sisteme entegre edilmeyecek).
+
+## 10. Şu Ana Kadar Tamamlananlar
+
+- Git repository ve GitHub bağlantısı kuruldu.
+- Docker üzerinde SQL Server container'ı (kalıcı volume ile) çalışıyor.
+- Entity'ler, `AppDbContext`, ilk migration oluşturuldu ve veritabanına uygulandı.
+- SA parolası/connection string, `.NET User Secrets` ile güvenli şekilde saklanıyor (git'e gitmiyor).
+- `Register` ve `Login` endpoint'leri (DTO → Service/Interface → Controller katmanlarıyla) çalışıyor.
+- Parola hash'leme `PasswordHasher<User>` ile yapılıyor.
+- Swagger UI (`/swagger`) üzerinden endpoint'ler test edilebiliyor.
+
+**Henüz yapılmadı:** JWT token üretimi, role bazlı yetkilendirme, görev/grup/not endpoint'leri, validasyon, unit testler, Angular frontend.
