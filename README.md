@@ -257,6 +257,16 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 - SA parolası/connection string, `.NET User Secrets` ile güvenli şekilde saklanıyor (git'e gitmiyor).
 - `Register` ve `Login` endpoint'leri (DTO → Service/Interface → Controller katmanlarıyla) çalışıyor.
 - Parola hash'leme `PasswordHasher<User>` ile yapılıyor.
-- Swagger UI (`/swagger`) üzerinden endpoint'ler test edilebiliyor.
+- Swagger UI (`/swagger`) üzerinden endpoint'ler test edilebiliyor (JWT token ile "Authorize" desteği dahil).
+- `Login`, `Status != Active` olan kullanıcıları (Pending/Inactive) reddediyor.
+- JWT authentication çalışıyor: Register/Login artık `AuthResponseDto` (Token + User) döndürüyor. Token içinde Id/Email/Role claim'leri var, `Jwt:Key/Issuer/Audience` User Secrets'ta.
+- İlk korumalı endpoint: `GET /api/auth/me` (`[Authorize]`), token'daki claim'leri okuyup döndürüyor.
 
-**Henüz yapılmadı:** JWT token üretimi, role bazlı yetkilendirme, görev/grup/not endpoint'leri, validasyon, unit testler, Angular frontend.
+**Henüz yapılmadı:** Role bazlı yetkilendirme (`[Authorize(Roles="...")]`), Admin onaylama endpoint'i, Group/Task/InternshipNote endpoint'leri, mentor sahiplik kontrolü, soft delete/restore, validasyon, unit testler, Angular frontend.
+
+## 11. Sıradaki Adım (bir sonraki oturum)
+
+1. `Backend.csproj`'daki gereksiz `Microsoft.Extensions.Identity.Core` paket referansını kaldır (`dotnet remove package Microsoft.Extensions.Identity.Core`).
+2. Admin onaylama endpoint'i yaz: `PUT /api/admin/users/{id}/approve` — `Pending` kullanıcıyı `Active` yapan, `[Authorize(Roles="Admin")]` korumalı bir endpoint. Bu, role bazlı authorization'ı göstermek için iyi bir ilk örnek olacak.
+3. Ardından sırayla: Group endpoint'leri (mentor grup oluşturma/üye ekleme), Task endpoint'leri (oluşturma/atama/durum güncelleme), InternshipNote endpoint'leri.
+4. Her yeni endpoint'te mentor/stajyer sahiplik kontrolünü (kendi grubun/görevin mi) uygula.
