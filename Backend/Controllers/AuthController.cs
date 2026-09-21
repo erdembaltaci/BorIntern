@@ -1,6 +1,9 @@
 using Backend.Dtos;
 using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+
 
 namespace Backend.Controllers;
 
@@ -21,7 +24,7 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.RegisterAsync(request);
-            return Created($"/api/auth/{result.Id}", result);
+            return Created($"/api/auth/{result.User.Id}", result);
         }
         catch (InvalidOperationException ex)
         {
@@ -42,4 +45,16 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = ex.Message });
         }
     }
+
+    [Authorize]
+    [HttpGet("me")]
+    public IActionResult Me()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        return Ok(new { Id = userId, Email = email, Role = role });
+    }
+
 }
