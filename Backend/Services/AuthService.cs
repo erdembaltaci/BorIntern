@@ -1,8 +1,7 @@
-using Backend.Data;
 using Backend.Dtos;
 using Backend.Entities;
+using Backend.Repositories;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -12,18 +11,18 @@ namespace Backend.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly AppDbContext _context;
+    private readonly IUserRepository _userRepository;
     private readonly IConfiguration _configuration;
     private readonly PasswordHasher<User> _passwordHasher = new();
 
-    public AuthService(AppDbContext context, IConfiguration configuration)
+    public AuthService(IUserRepository userRepository, IConfiguration configuration)
     {
-        _context = context;
+        _userRepository = userRepository;
         _configuration = configuration;
     }
-    public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
+    public async Task<UserDto> RegisterAsync(RegisterRequestDto request)
     {
-        bool emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email);
+        bool emailExists = await _userRepository.EmailExistsAsync(request.Email);
         if (emailExists)
         {
             throw new InvalidOperationException("Bu email adresi zaten kayıtlı.");
@@ -39,21 +38,19 @@ public class AuthService : IAuthService
         };
         user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await _userRepository.AddAsync(user);
+        await _userRepository.SaveChangesAsync();
 
-        return new AuthResponseDto
+        return new UserDto
         {
-            Token = GenerateJwtToken(user),
-            User = new UserDto
-            {
-                Id = user.Id,
-                FullName = user.FullName,
-                Email = user.Email,
-                Role = user.Role.ToString(),
-                Status = user.Status.ToString(),
-                CreatedAt = user.CreatedAt
-            }
+
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            Role = user.Role.ToString(),
+            Status = user.Status.ToString(),
+            CreatedAt = user.CreatedAt
+
         };
     }
 
@@ -82,7 +79,7 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
             throw new InvalidOperationException("Kullanıcı bulunamadı.");

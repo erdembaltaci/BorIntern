@@ -259,14 +259,17 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 - Parola hash'leme `PasswordHasher<User>` ile yapılıyor.
 - Swagger UI (`/swagger`) üzerinden endpoint'ler test edilebiliyor (JWT token ile "Authorize" desteği dahil).
 - `Login`, `Status != Active` olan kullanıcıları (Pending/Inactive) reddediyor.
-- JWT authentication çalışıyor: Register/Login artık `AuthResponseDto` (Token + User) döndürüyor. Token içinde Id/Email/Role claim'leri var, `Jwt:Key/Issuer/Audience` User Secrets'ta.
+- JWT authentication çalışıyor: **sadece `Login`** `AuthResponseDto` (Token + User) döndürüyor. `Register` artık token vermiyor, sadece `UserDto` (güvenlik düzeltmesi — Pending kullanıcı, Register'dan token alıp korumalı endpoint'lere giremesin diye).
 - İlk korumalı endpoint: `GET /api/auth/me` (`[Authorize]`), token'daki claim'leri okuyup döndürüyor.
+- **N-katmanlı mimariye geçildi:** `Controller → Service → Repository → AppDbContext`. `BaseEntity` (Id, CreatedAt) ve `SoftDeletableEntity : BaseEntity` (IsDeleted, DeletedAt) ile tüm entity'lerdeki tekrar kaldırıldı. `IUserRepository`/`UserRepository` eklendi, `AuthService`/`UserService` artık `AppDbContext`'e değil, repository'ye bağımlı.
+- `UserService.ApproveUserAsync` yazıldı (Pending → Active) ama **henüz bir controller'a bağlanmadı** — bir sonraki adım bu.
 
-**Henüz yapılmadı:** Role bazlı yetkilendirme (`[Authorize(Roles="...")]`), Admin onaylama endpoint'i, Group/Task/InternshipNote endpoint'leri, mentor sahiplik kontrolü, soft delete/restore, validasyon, unit testler, Angular frontend.
+**Henüz yapılmadı:** Admin onaylama endpoint'i (Controller katmanı — Service hazır ama endpoint yok), role bazlı yetkilendirme (`[Authorize(Roles="...")]`), global exception middleware (şu an try/catch her controller'da tekrarlanıyor), Group/Task/InternshipNote repository+service+controller'ları, mentor sahiplik kontrolü, soft delete/restore, validasyon, unit testler, Angular frontend.
 
 ## 11. Sıradaki Adım (bir sonraki oturum)
 
 1. `Backend.csproj`'daki gereksiz `Microsoft.Extensions.Identity.Core` paket referansını kaldır (`dotnet remove package Microsoft.Extensions.Identity.Core`).
-2. Admin onaylama endpoint'i yaz: `PUT /api/admin/users/{id}/approve` — `Pending` kullanıcıyı `Active` yapan, `[Authorize(Roles="Admin")]` korumalı bir endpoint. Bu, role bazlı authorization'ı göstermek için iyi bir ilk örnek olacak.
-3. Ardından sırayla: Group endpoint'leri (mentor grup oluşturma/üye ekleme), Task endpoint'leri (oluşturma/atama/durum güncelleme), InternshipNote endpoint'leri.
-4. Her yeni endpoint'te mentor/stajyer sahiplik kontrolünü (kendi grubun/görevin mi) uygula.
+2. `AdminController` yaz: `PUT /api/admin/users/{id}/approve` — zaten hazır olan `UserService.ApproveUserAsync`'i çağıran, `[Authorize(Roles="Admin")]` korumalı bir endpoint. Bu, role bazlı authorization'ı göstermek için ilk gerçek örnek olacak.
+3. Global exception middleware yaz — her controller'da tekrarlanan `try/catch`'i merkezi bir yere topla.
+4. Ardından sırayla: Group repository/service/controller (mentor grup oluşturma/üye ekleme), Task repository/service/controller (oluşturma/atama/durum güncelleme), InternshipNote repository/service/controller. Her biri, `UserRepository`/`UserService` şablonunu takip edecek.
+5. Her yeni endpoint'te mentor/stajyer sahiplik kontrolünü (kendi grubun/görevin mi) uygula.

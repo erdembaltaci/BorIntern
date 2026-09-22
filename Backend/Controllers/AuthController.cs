@@ -24,7 +24,7 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.RegisterAsync(request);
-            return Created($"/api/auth/{result.User.Id}", result);
+            return Created($"/api/auth/{result.Id}", result);
         }
         catch (InvalidOperationException ex)
         {
