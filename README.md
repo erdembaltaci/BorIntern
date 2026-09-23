@@ -251,25 +251,26 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 
 ## 10. Şu Ana Kadar Tamamlananlar
 
-- Git repository ve GitHub bağlantısı kuruldu.
-- Docker üzerinde SQL Server container'ı (kalıcı volume ile) çalışıyor.
-- Entity'ler, `AppDbContext`, ilk migration oluşturuldu ve veritabanına uygulandı.
-- SA parolası/connection string, `.NET User Secrets` ile güvenli şekilde saklanıyor (git'e gitmiyor).
-- `Register` ve `Login` endpoint'leri (DTO → Service/Interface → Controller katmanlarıyla) çalışıyor.
-- Parola hash'leme `PasswordHasher<User>` ile yapılıyor.
-- Swagger UI (`/swagger`) üzerinden endpoint'ler test edilebiliyor (JWT token ile "Authorize" desteği dahil).
-- `Login`, `Status != Active` olan kullanıcıları (Pending/Inactive) reddediyor.
-- JWT authentication çalışıyor: **sadece `Login`** `AuthResponseDto` (Token + User) döndürüyor. `Register` artık token vermiyor, sadece `UserDto` (güvenlik düzeltmesi — Pending kullanıcı, Register'dan token alıp korumalı endpoint'lere giremesin diye).
-- İlk korumalı endpoint: `GET /api/auth/me` (`[Authorize]`), token'daki claim'leri okuyup döndürüyor.
-- **N-katmanlı mimariye geçildi:** `Controller → Service → Repository → AppDbContext`. `BaseEntity` (Id, CreatedAt) ve `SoftDeletableEntity : BaseEntity` (IsDeleted, DeletedAt) ile tüm entity'lerdeki tekrar kaldırıldı. `IUserRepository`/`UserRepository` eklendi, `AuthService`/`UserService` artık `AppDbContext`'e değil, repository'ye bağımlı.
-- `UserService.ApproveUserAsync` yazıldı (Pending → Active) ve **`AdminController`'a bağlandı**: `POST /api/admin/approve-user/{userId}`, `[Authorize(Roles="Admin")]` ile korumalı — role bazlı yetkilendirme test edildi, çalışıyor.
+**Altyapı:** Git+GitHub, Docker'da SQL Server (kalıcı volume), User Secrets ile gizli veri yönetimi, `BorBlog.slnx` altında `Backend` + `Backend.Tests`.
 
-**Henüz yapılmadı:** Role bazlı yetkilendirmenin diğer yerlere yayılması, global exception middleware (şu an try/catch her controller'da tekrarlanıyor), Group/Task/InternshipNote repository+service+controller'ları, mentor sahiplik kontrolü, soft delete/restore, validasyon, unit testler, **rate limiting / account lockout** (Login endpoint'i şu an brute-force denemelerine karşı korumasız — her istek maliyetsiz kabul ediliyor), Angular frontend.
+**Mimari:** Tam N-katmanlı yapı — `Controller → Service → Repository → AppDbContext`. `BaseEntity`/`SoftDeletableEntity` ile ortak alanlar tekilleştirildi. Özel exception tipleri (`NotFoundException`/`UnauthorizedException`/`ForbiddenException`) + `ExceptionHandlingMiddleware` ile controller'larda `try/catch` yok, hatalar merkezi olarak doğru HTTP koduna çevriliyor.
+
+**Auth & Güvenlik:** Register/Login/Refresh/Logout, JWT (1 saat) + refresh token (7 gün, tek kullanımlık/rotation), rol bazlı yetkilendirme (`[Authorize(Roles=...)]`), sahiplik kontrolleri (mentor/stajyer kendi kaydına erişir), `/api/auth/login` için rate limiting (IP başına dakikada 5 deneme), tüm request DTO'larında DataAnnotations validasyonu, CORS (`localhost:4200` için hazır).
+
+**Özellikler (tam CRUD, sahiplik kontrollü):**
+- **User:** register/login/profil (görüntüle+güncelle)/Admin onay-pasifleştirme-listeleme
+- **Group:** oluşturma/listeleme/isim güncelleme/silme(soft)/restore, Admin tüm grupları görebilir
+- **GroupMember:** üye ekleme/listeleme/çıkarma(soft)
+- **Task:** oluşturma/durum güncelleme/listeleme/performans özeti, Admin tüm görevleri görebilir
+- **InternshipNote:** ekleme/listeleme/güncelleme/silme(soft)/restore
+
+**Test:** `Backend.Tests` içinde 31 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
+
+**Henüz yapılmadı (bilerek sonraya bırakılan):** Angular frontend, Docker Compose (Backend+SQL+RabbitMQ birlikte), RabbitMQ (register sonrası email bildirimi), Azure'a canlıya alma.
 
 ## 11. Sıradaki Adım (bir sonraki oturum)
 
-1. `Backend.csproj`'daki gereksiz `Microsoft.Extensions.Identity.Core` paket referansını kaldır (`dotnet remove package Microsoft.Extensions.Identity.Core`).
-2. Global exception middleware yaz — her controller'da tekrarlanan `try/catch`'i merkezi bir yere topla.
-3. **Rate limiting** ekle (`Microsoft.AspNetCore.RateLimiting`) — özellikle `/api/auth/login`'e, brute-force parola denemelerini engellemek için.
-4. Ardından sırayla: Group repository/service/controller (mentor grup oluşturma/üye ekleme), Task repository/service/controller (oluşturma/atama/durum güncelleme), InternshipNote repository/service/controller. Her biri, `UserRepository`/`UserService` şablonunu takip edecek.
-5. Her yeni endpoint'te mentor/stajyer sahiplik kontrolünü (kendi grubun/görevin mi) uygula.
+1. `Backend.csproj`'daki gereksiz `Microsoft.Extensions.Identity.Core` paket referansını kaldır (küçük temizlik, hâlâ yapılmadı).
+2. Angular frontend'e başlangıç: proje iskeleti, routing, auth service, interceptor (JWT'yi her isteğe otomatik ekleyen), guard.
+3. Frontend geliştirilirken paralel olarak: RabbitMQ (register sonrası email bildirimi, küçük ilk kullanım).
+4. Daha sonra: Docker Compose ile Backend+SQL+RabbitMQ'yu tek komutla ayağa kaldırma, Azure'a canlıya alma.
