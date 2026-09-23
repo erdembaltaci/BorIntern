@@ -1,12 +1,14 @@
 using Backend.Dtos;
 using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
-
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Backend.Controllers;
 
+// Sadece kimlik doğrulama (register/login/refresh/logout) burada. Profil görüntüleme/güncelleme
+// UserController'a taşındı - tek sorumluluk ilkesi (SRP).
+// Not: try/catch artık yok - Service'lerin fırlattığı hatalar ExceptionHandlingMiddleware
+// tarafından merkezi olarak yakalanıp doğru HTTP koduna çevriliyor.
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
@@ -18,43 +20,38 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
+    // Kayıt: her zaman Intern + Pending olarak oluşturur, token vermez
+    // (Pending kullanıcı, Register üzerinden token alıp korumalı endpoint'lere giremesin diye).
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequestDto request)
     {
-        try
-        {
-            var result = await _authService.RegisterAsync(request);
-            return Created($"/api/auth/{result.Id}", result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _authService.RegisterAsync(request);
+        return Created($"/api/auth/{result.Id}", result);
     }
 
+    // Giriş: sadece Active kullanıcılar başarılı olur, JWT + refresh token döner.
+    // Rate limit: aynı IP'den 1 dakikada en fazla 5 deneme (brute-force koruması).
+    [EnableRateLimiting("LoginPolicy")]
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequestDto request)
     {
-        try  
-        {
-            var result = await _authService.LoginAsync(request);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Unauthorized(new { message = ex.Message });
-        }
+        var result = await _authService.LoginAsync(request);
+        return Ok(result);
     }
 
-    [Authorize]
-    [HttpGet("me")]
-    public IActionResult Me()
+    // Access token süresi dolunca, parola girmeden yeni bir access+refresh token çifti almak için.
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(RefreshTokenRequestDto request)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
-        var role = User.FindFirst(ClaimTypes.Role)?.Value;
-
-        return Ok(new { Id = userId, Email = email, Role = role });
+        var result = await _authService.RefreshTokenAsync(request);
+        return Ok(result);
     }
 
+    // Refresh token'ı iptal eder - "çıkış yap" işlevi.
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(RefreshTokenRequestDto request)
+    {
+        await _authService.LogoutAsync(request);
+        return NoContent();
+    }
 }

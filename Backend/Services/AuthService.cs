@@ -1,9 +1,11 @@
 using Backend.Dtos;
 using Backend.Entities;
+using Backend.Exceptions;
 using Backend.Repositories;
 using Microsoft.AspNetCore.Identity;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
@@ -12,14 +14,22 @@ namespace Backend.Services;
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IConfiguration _configuration;
     private readonly PasswordHasher<User> _passwordHasher = new();
 
-    public AuthService(IUserRepository userRepository, IConfiguration configuration)
+    public AuthService(
+        IUserRepository userRepository,
+        IRefreshTokenRepository refreshTokenRepository,
+        IConfiguration configuration)
     {
         _userRepository = userRepository;
+        _refreshTokenRepository = refreshTokenRepository;
         _configuration = configuration;
     }
+
+    // Yeni kullanıcı her zaman Intern + Pending olarak oluşur - Role/Status kullanıcı isteğinden
+    // ASLA alınmaz, burada sabitlenir. Token dönmüyoruz: onay gelmeden hiçbir korumalı endpoint'e giremesin.
     public async Task<UserDto> RegisterAsync(RegisterRequestDto request)
     {
         bool emailExists = await _userRepository.EmailExistsAsync(request.Email);
@@ -43,14 +53,105 @@ public class AuthService : IAuthService
 
         return new UserDto
         {
-
             Id = user.Id,
             FullName = user.FullName,
             Email = user.Email,
             Role = user.Role.ToString(),
             Status = user.Status.ToString(),
             CreatedAt = user.CreatedAt
+        };
+    }
 
+    // Sırayla: kullanıcı var mı -> parola doğru mu -> Active mi. Üçü de geçerse JWT + refresh token üretilir.
+    public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request)
+    {
+        var user = await _userRepository.GetByEmailAsync(request.Email);
+        if (user == null)
+        {
+            throw new UnauthorizedException("Kullanıcı bulunamadı.");
+        }
+
+        var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        if (verificationResult != PasswordVerificationResult.Success)
+        {
+            throw new UnauthorizedException("Geçersiz şifre.");
+        }
+
+        if (user.Status != UserStatus.Active)
+        {
+            throw new UnauthorizedException("Kullanıcı aktif değil.");
+        }
+
+        return await BuildAuthResponseAsync(user);
+    }
+
+    // Access token süresi dolunca, kullanıcı parolasını tekrar girmeden buraya refresh token'ını
+    // gönderir; biz de geçerliyse yeni bir access+refresh token çifti üretiriz.
+    public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
+    {
+        var storedToken = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+        if (storedToken == null || storedToken.IsRevoked || storedToken.ExpiresAt < DateTime.UtcNow)
+        {
+            throw new UnauthorizedException("Geçersiz veya süresi dolmuş refresh token.");
+        }
+
+        var user = await _userRepository.GetByIdAsync(storedToken.UserId);
+        if (user == null || user.Status != UserStatus.Active)
+        {
+            throw new UnauthorizedException("Kullanıcı bulunamadı veya aktif değil.");
+        }
+
+        // Rotation: kullanılan refresh token'ı hemen iptal ediyoruz - her refresh token SADECE
+        // bir kere kullanılabilir. Biri bu token'ı çalıp kullansa bile, gerçek kullanıcı bir sonraki
+        // refresh denemesinde "geçersiz" hatası alır ve durumun farkına varır.
+        storedToken.IsRevoked = true;
+        await _refreshTokenRepository.SaveChangesAsync();
+
+        return await BuildAuthResponseAsync(user);
+    }
+
+    // Logout: refresh token'ı iptal eder. Var olan access token, kendi süresi (1 saat) dolana
+    // kadar teknik olarak hâlâ geçerlidir - bu, JWT sistemlerinde kabul edilen bir sınırlamadır.
+    public async Task LogoutAsync(RefreshTokenRequestDto request)
+    {
+        var storedToken = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+        if (storedToken == null)
+        {
+            throw new NotFoundException("Refresh token bulunamadı.");
+        }
+
+        storedToken.IsRevoked = true;
+        await _refreshTokenRepository.SaveChangesAsync();
+    }
+
+    // Login ve RefreshToken aynı çıktıyı üretiyor (yeni access token + yeni refresh token + user
+    // bilgisi) - bu yüzden tek bir yardımcı metoda topladık.
+    private async Task<AuthResponseDto> BuildAuthResponseAsync(User user)
+    {
+        var refreshToken = new RefreshToken
+        {
+            Token = GenerateRefreshToken(),
+            UserId = user.Id,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            IsRevoked = false
+        };
+
+        await _refreshTokenRepository.AddAsync(refreshToken);
+        await _refreshTokenRepository.SaveChangesAsync();
+
+        return new AuthResponseDto
+        {
+            Token = GenerateJwtToken(user),
+            RefreshToken = refreshToken.Token,
+            User = new UserDto
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                Email = user.Email,
+                Role = user.Role.ToString(),
+                Status = user.Status.ToString(),
+                CreatedAt = user.CreatedAt
+            }
         };
     }
 
@@ -74,41 +175,13 @@ public class AuthService : IAuthService
             signingCredentials: credentials
         );
 
-        return new JwtSecurityTokenHandler().WriteToken(token); 
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request)
+    // Kriptografik olarak güvenli, rastgele bir metin - JWT değil, sadece tahmin edilemez bir "anahtar".
+    private static string GenerateRefreshToken()
     {
-        var user = await _userRepository.GetByEmailAsync(request.Email);
-        if (user == null)
-        {
-            throw new InvalidOperationException("Kullanıcı bulunamadı.");
-        }
-
-        var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-        if (verificationResult != PasswordVerificationResult.Success)
-        {
-            throw new InvalidOperationException("Geçersiz şifre.");
-        }
-
-        if (user.Status != UserStatus.Active)
-        {
-            throw new InvalidOperationException("Kullanıcı aktif değil.");
-        }
-
-        return new AuthResponseDto
-        {
-            Token = GenerateJwtToken(user),
-            User = new UserDto  
-            {
-                Id = user.Id,
-                FullName = user.FullName,
-                Email = user.Email,
-                Role = user.Role.ToString(),
-                Status = user.Status.ToString(),
-                CreatedAt = user.CreatedAt
-            }
-        };
+        var randomBytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(randomBytes);
     }
-
 }

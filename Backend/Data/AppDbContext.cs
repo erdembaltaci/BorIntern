@@ -21,11 +21,15 @@ public class AppDbContext : DbContext
 
     public DbSet<GroupMember> GroupMembers { get; set; }
 
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // soft delete query filters
+        // Soft delete query filter'ları: IsDeleted=true olan kayıtlar, normal sorgularda
+        // (örn. context.Tasks.ToListAsync()) otomatik olarak gizlenir - ekstra Where yazmaya gerek yok.
+        // User'da bu yok çünkü User için soft delete yerine Status=Inactive kullanıyoruz.
         modelBuilder.Entity<TaskItem>()
         .HasQueryFilter(task => !task.IsDeleted);
 
@@ -38,10 +42,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<GroupMember>()
         .HasQueryFilter(member => !member.IsDeleted);
 
-        // Configure relationships and constraints
+        // İlişkiler ve kısıtlar.
+        // Tüm foreign key'ler Restrict (silme engellenir) - GroupMember->Group hariç, o Cascade
+        // (bir grup silinirse üyelik kayıtları da silinsin mantığıyla; ama Group zaten soft-delete
+        // kullandığı için bu Cascade pratikte hiç tetiklenmiyor).
 
         modelBuilder.Entity<User>()
-
             .HasIndex(user => user.Email)
             .IsUnique();
 
@@ -84,5 +90,16 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(note => note.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(rt => rt.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Aynı token string'i iki kere üretilmesin diye (pratikte imkansıza yakın ama garanti olsun).
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(rt => rt.Token)
+            .IsUnique();
     }
 }
