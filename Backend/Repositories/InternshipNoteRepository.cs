@@ -18,6 +18,13 @@ public class InternshipNoteRepository : IInternshipNoteRepository
         return await _context.InternshipNotes.FirstOrDefaultAsync(n => n.Id == id);
     }
 
+    // IgnoreQueryFilters(): AppDbContext'teki "!IsDeleted" filtresini bu sorgu için devre dışı
+    // bırakır - yoksa silinmiş bir notu asla bulamayız, restore etmek imkansız olurdu.
+    public async Task<InternshipNote?> GetByIdIncludingDeletedAsync(int id)
+    {
+        return await _context.InternshipNotes.IgnoreQueryFilters().FirstOrDefaultAsync(n => n.Id == id);
+    }
+
     public async Task<List<InternshipNote>> GetByUserIdAsync(int userId)
     {
         return await _context.InternshipNotes.Where(n => n.UserId == userId).ToListAsync();

@@ -20,6 +20,11 @@ public class GroupRepository : IGroupRepository
         return await _context.Groups.FirstOrDefaultAsync(g => g.Id == id);
     }
 
+    public async Task<Group?> GetByIdIncludingDeletedAsync(int id)
+    {
+        return await _context.Groups.IgnoreQueryFilters().FirstOrDefaultAsync(g => g.Id == id);
+    }
+
     public async Task<List<Group>> GetByMentorIdAsync(int mentorId)
     {
         return await _context.Groups.Where(g => g.MentorId == mentorId).ToListAsync();

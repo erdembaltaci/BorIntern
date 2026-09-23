@@ -51,4 +51,13 @@ public class InternshipNoteController : ControllerBase
         await _noteService.DeleteNoteAsync(userId, noteId);
         return NoContent();
     }
+
+    // Silinen bir notu geri getirir.
+    [HttpPost("{noteId}/restore")]
+    public async Task<IActionResult> RestoreNote(int noteId)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _noteService.RestoreNoteAsync(userId, noteId);
+        return Ok(result);
+    }
 }

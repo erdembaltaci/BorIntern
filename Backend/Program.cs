@@ -31,6 +31,19 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IGroupMemberService, GroupMemberService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IInternshipNoteService, InternshipNoteService>();
+// CORS: Angular frontend farklı bir adresten (localhost:4200) istek atacağı için,
+// tarayıcı bu izni görmeden isteği reddeder. appsettings'te olmayan bir origin denenirse
+// istek yine reddedilir - bu, sadece "izin verdiğimiz" adreslerin bize erişebilmesi demek.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -100,6 +113,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// CORS, Authentication'dan ÖNCE gelmeli - tarayıcı önce "bu origin'e izin var mı" diye sorar.
+app.UseCors("AllowFrontend");
 
 // Zincirin en başında: sonrasındaki HER middleware'de (auth, controller'lar) oluşan hatayı yakalar.
 // Artık controller'larda try/catch YOK - Service'ler hata fırlatır, burası merkezi olarak yakalayıp

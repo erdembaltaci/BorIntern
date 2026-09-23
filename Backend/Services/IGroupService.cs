@@ -6,4 +6,10 @@ public interface IGroupService
 {
     Task<GroupDto> CreateGroupAsync(int mentorId, CreateGroupRequestDto request);
     Task<List<GroupDto>> GetMyGroupsAsync(int mentorId);
+    Task<GroupDto> UpdateGroupNameAsync(int mentorId, int groupId, CreateGroupRequestDto request);
+    Task DeleteGroupAsync(int mentorId, int groupId);
+    Task<GroupDto> RestoreGroupAsync(int mentorId, int groupId);
+
+    // Admin, tüm mentor'ların gruplarını görebilir (mentor sahiplik kontrolü YOK - bilerek).
+    Task<List<GroupDto>> GetAllGroupsAsync();
 }

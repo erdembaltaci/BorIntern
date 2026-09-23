@@ -69,6 +69,31 @@ public class GroupMemberService : IGroupMemberService
         return members.Select(MapToDto).ToList();
     }
 
+    public async Task RemoveMemberAsync(int mentorId, int groupId, int userId)
+    {
+        var group = await _groupRepository.GetByIdAsync(groupId);
+        if (group == null)
+        {
+            throw new NotFoundException("Grup bulunamadı.");
+        }
+
+        if (group.MentorId != mentorId)
+        {
+            throw new ForbiddenException("Bu grup size ait değil.");
+        }
+
+        var membership = await _groupMemberRepository.GetByGroupAndUserAsync(groupId, userId);
+        if (membership == null)
+        {
+            throw new NotFoundException("Bu kullanıcı grubun üyesi değil.");
+        }
+
+        // Fiziksel silme yok - GroupMember de SoftDeletableEntity, aynı desen burada da geçerli.
+        membership.IsDeleted = true;
+        membership.DeletedAt = DateTime.UtcNow;
+        await _groupMemberRepository.SaveChangesAsync();
+    }
+
     private static GroupMemberDto MapToDto(GroupMember groupMember)
     {
         return new GroupMemberDto

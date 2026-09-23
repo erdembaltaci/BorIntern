@@ -11,10 +11,14 @@ namespace Backend.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IGroupService _groupService;
+    private readonly ITaskService _taskService;
 
-    public AdminController(IUserService userService)
+    public AdminController(IUserService userService, IGroupService groupService, ITaskService taskService)
     {
         _userService = userService;
+        _groupService = groupService;
+        _taskService = taskService;
     }
 
     [HttpPost("approve-user/{userId}")]
@@ -42,6 +46,23 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetPendingUsers()
     {
         var result = await _userService.GetPendingUsersAsync();
+        return Ok(result);
+    }
+
+    // Admin, hangi mentor'a ait olursa olsun TÜM grupları görebilir - GroupController'daki
+    // "mine" endpoint'inden farklı olarak burada mentor sahiplik filtresi yok, bilerek.
+    [HttpGet("groups")]
+    public async Task<IActionResult> GetAllGroups()
+    {
+        var result = await _groupService.GetAllGroupsAsync();
+        return Ok(result);
+    }
+
+    // Admin, hangi kullanıcıya atanmış olursa olsun TÜM görevleri görebilir.
+    [HttpGet("tasks")]
+    public async Task<IActionResult> GetAllTasks()
+    {
+        var result = await _taskService.GetAllTasksAsync();
         return Ok(result);
     }
 }

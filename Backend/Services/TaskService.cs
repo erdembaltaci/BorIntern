@@ -94,6 +94,12 @@ public class TaskService : ITaskService
         };
     }
 
+    public async Task<List<TaskDto>> GetAllTasksAsync()
+    {
+        var tasks = await _taskRepository.GetAllAsync();
+        return tasks.Select(MapToDto).ToList();
+    }
+
     private static TaskDto MapToDto(TaskItem task)
     {
         return new TaskDto

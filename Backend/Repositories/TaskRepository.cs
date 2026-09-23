@@ -23,6 +23,11 @@ public class TaskRepository : ITaskRepository
         return await _context.Tasks.Where(t => t.AssignedUserId == userId).ToListAsync();
     }
 
+    public async Task<List<TaskItem>> GetAllAsync()
+    {
+        return await _context.Tasks.ToListAsync();
+    }
+
     public async Task AddAsync(TaskItem task)
     {
         await _context.Tasks.AddAsync(task);

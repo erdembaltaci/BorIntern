@@ -78,6 +78,33 @@ public class InternshipNoteService : IInternshipNoteService
         await _noteRepository.SaveChangesAsync();
     }
 
+    public async Task<InternshipNoteDto> RestoreNoteAsync(int userId, int noteId)
+    {
+        // Silinmiş kayıtları da görebilen özel metodu kullanıyoruz - normal GetByIdAsync,
+        // global query filter yüzünden silinmiş bir notu zaten hiç döndürmez.
+        var note = await _noteRepository.GetByIdIncludingDeletedAsync(noteId);
+        if (note == null)
+        {
+            throw new NotFoundException("Not bulunamadı.");
+        }
+
+        if (note.UserId != userId)
+        {
+            throw new ForbiddenException("Bu not size ait değil.");
+        }
+
+        if (!note.IsDeleted)
+        {
+            throw new InvalidOperationException("Bu not zaten silinmemiş.");
+        }
+
+        note.IsDeleted = false;
+        note.DeletedAt = null;
+        await _noteRepository.SaveChangesAsync();
+
+        return MapToDto(note);
+    }
+
     private static InternshipNoteDto MapToDto(InternshipNote note)
     {
         return new InternshipNoteDto

@@ -10,4 +10,7 @@ public interface ITaskService
 
     // Mentor'un, kendi grubundaki bir stajyerin görev özetini (kaç tamamlanmış, kaç devam ediyor) görmesi.
     Task<TaskSummaryDto> GetPerformanceSummaryAsync(int mentorId, int userId);
+
+    // Admin, tüm görevleri (hangi mentor/stajyer olursa olsun) görebilir.
+    Task<List<TaskDto>> GetAllTasksAsync();
 }

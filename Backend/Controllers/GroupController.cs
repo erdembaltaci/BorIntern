@@ -61,4 +61,44 @@ public class GroupController : ControllerBase
         var result = await _groupMemberService.GetGroupMembersAsync(callerId, groupId);
         return Ok(result);
     }
+
+    // Sadece grubun mentoru bir üyeyi çıkarabilir.
+    [Authorize(Roles = "Mentor")]
+    [HttpDelete("{groupId}/members/{userId}")]
+    public async Task<IActionResult> RemoveMember(int groupId, int userId)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        await _groupMemberService.RemoveMemberAsync(mentorId, groupId, userId);
+        return NoContent();
+    }
+
+    // Grup adını günceller - sadece grubun sahibi mentor.
+    [Authorize(Roles = "Mentor")]
+    [HttpPut("{groupId}")]
+    public async Task<IActionResult> UpdateGroup(int groupId, CreateGroupRequestDto request)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _groupService.UpdateGroupNameAsync(mentorId, groupId, request);
+        return Ok(result);
+    }
+
+    // Grubu soft-delete eder - fiziksel silme yok.
+    [Authorize(Roles = "Mentor")]
+    [HttpDelete("{groupId}")]
+    public async Task<IActionResult> DeleteGroup(int groupId)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        await _groupService.DeleteGroupAsync(mentorId, groupId);
+        return NoContent();
+    }
+
+    // Silinen bir grubu geri getirir.
+    [Authorize(Roles = "Mentor")]
+    [HttpPost("{groupId}/restore")]
+    public async Task<IActionResult> RestoreGroup(int groupId)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _groupService.RestoreGroupAsync(mentorId, groupId);
+        return Ok(result);
+    }
 }

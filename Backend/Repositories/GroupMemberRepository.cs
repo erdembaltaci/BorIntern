@@ -23,6 +23,11 @@ public class GroupMemberRepository : IGroupMemberRepository
         return await _context.GroupMembers.Where(gm => gm.GroupId == groupId).ToListAsync();
     }
 
+    public async Task<GroupMember?> GetByGroupAndUserAsync(int groupId, int userId)
+    {
+        return await _context.GroupMembers.FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+    }
+
     // Önce bu mentor'a ait grupların Id'lerini buluyoruz, sonra bu kullanıcının
     // o gruplardan herhangi birinde üye olup olmadığına bakıyoruz.
     public async Task<bool> IsUserInMentorGroupAsync(int mentorId, int userId)
