@@ -1,5 +1,6 @@
 using Backend.Dtos;
 using Backend.Entities;
+using Backend.Exceptions;
 using Backend.Repositories;
 using Backend.Services;
 using Moq;
@@ -61,5 +62,138 @@ public class GroupServiceTests
 
         Assert.Equal(2, result.Count);
         Assert.Contains(result, g => g.Name == "Grup A");
+    }
+
+    [Fact]
+    public async Task GetGroupByIdAsync_GrupBulunamazsa_NotFoundExceptionFirlatir()
+    {
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((Group?)null);
+
+        var service = new GroupService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetGroupByIdAsync(mentorId: 1, groupId: 99));
+    }
+
+    [Fact]
+    public async Task GetGroupByIdAsync_BaskaMentorunGrubu_ForbiddenExceptionFirlatir()
+    {
+        var group = new Group { Id = 1, Name = "Grup A", MentorId = 99 };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
+
+        var service = new GroupService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetGroupByIdAsync(mentorId: 1, groupId: 1));
+    }
+
+    [Fact]
+    public async Task UpdateGroupNameAsync_GecerliIstek_IsimGuncellenir()
+    {
+        var group = new Group { Id = 1, Name = "Eski Isim", MentorId = 1 };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
+        mockRepo.Setup(r => r.GroupNameExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+
+        var service = new GroupService(mockRepo.Object);
+
+        var result = await service.UpdateGroupNameAsync(1, 1, new CreateGroupRequestDto { Name = "Yeni Isim" });
+
+        Assert.Equal("Yeni Isim", result.Name);
+    }
+
+    [Fact]
+    public async Task UpdateGroupNameAsync_BaskaMentorunGrubu_ForbiddenExceptionFirlatir()
+    {
+        var group = new Group { Id = 1, Name = "Eski Isim", MentorId = 99 };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
+
+        var service = new GroupService(mockRepo.Object);
+
+        var request = new CreateGroupRequestDto { Name = "Yeni Isim" };
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.UpdateGroupNameAsync(1, 1, request));
+    }
+
+    [Fact]
+    public async Task DeleteGroupAsync_GecerliIstek_SoftDeleteYapilir()
+    {
+        var group = new Group { Id = 1, Name = "Grup A", MentorId = 1, IsDeleted = false };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
+
+        var service = new GroupService(mockRepo.Object);
+
+        await service.DeleteGroupAsync(mentorId: 1, groupId: 1);
+
+        Assert.True(group.IsDeleted);
+        Assert.NotNull(group.DeletedAt);
+    }
+
+    [Fact]
+    public async Task DeleteGroupAsync_BaskaMentorunGrubu_ForbiddenExceptionFirlatir()
+    {
+        var group = new Group { Id = 1, Name = "Grup A", MentorId = 99 };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
+
+        var service = new GroupService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.DeleteGroupAsync(mentorId: 1, groupId: 1));
+    }
+
+    [Fact]
+    public async Task RestoreGroupAsync_ZatenSilinmemisse_InvalidOperationExceptionFirlatir()
+    {
+        var group = new Group { Id = 1, Name = "Grup A", MentorId = 1, IsDeleted = false };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(group);
+
+        var service = new GroupService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RestoreGroupAsync(1, 1));
+    }
+
+    [Fact]
+    public async Task RestoreGroupAsync_GecerliIstek_IsDeletedFalseOlur()
+    {
+        var group = new Group
+        {
+            Id = 1, Name = "Grup A", MentorId = 1, IsDeleted = true, DeletedAt = DateTime.UtcNow
+        };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(group);
+
+        var service = new GroupService(mockRepo.Object);
+
+        var result = await service.RestoreGroupAsync(1, 1);
+
+        Assert.False(group.IsDeleted);
+        Assert.Null(group.DeletedAt);
+        Assert.Equal("Grup A", result.Name);
+    }
+
+    [Fact]
+    public async Task GetAllGroupsAsync_TumGruplariMentorFiltresiOlmadanDoner()
+    {
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetAllGroupsAsync()).ReturnsAsync(new List<Group>
+        {
+            new() { Id = 1, Name = "Grup A", MentorId = 1 },
+            new() { Id = 2, Name = "Grup B", MentorId = 2 }
+        });
+
+        var service = new GroupService(mockRepo.Object);
+
+        var result = await service.GetAllGroupsAsync();
+
+        Assert.Equal(2, result.Count);
     }
 }

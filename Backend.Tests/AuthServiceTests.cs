@@ -103,4 +103,121 @@ public class AuthServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => authService.RegisterAsync(request));
     }
+
+    [Fact]
+    public async Task RefreshTokenAsync_TokenBulunamazsa_UnauthorizedExceptionFirlatir()
+    {
+        var mockRefreshRepo = new Mock<IRefreshTokenRepository>();
+        mockRefreshRepo.Setup(r => r.GetByTokenAsync(It.IsAny<string>())).ReturnsAsync((RefreshToken?)null);
+
+        var authService = new AuthService(
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object);
+
+        var request = new RefreshTokenRequestDto { RefreshToken = "olmayan-token" };
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => authService.RefreshTokenAsync(request));
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_IptalEdilmisTokenIse_UnauthorizedExceptionFirlatir()
+    {
+        var revokedToken = new RefreshToken
+        {
+            Token = "eski-token",
+            UserId = 1,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            IsRevoked = true // daha önce kullanılmış/iptal edilmiş
+        };
+
+        var mockRefreshRepo = new Mock<IRefreshTokenRepository>();
+        mockRefreshRepo.Setup(r => r.GetByTokenAsync("eski-token")).ReturnsAsync(revokedToken);
+
+        var authService = new AuthService(
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object);
+
+        var request = new RefreshTokenRequestDto { RefreshToken = "eski-token" };
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => authService.RefreshTokenAsync(request));
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_SuresiDolmusTokenIse_UnauthorizedExceptionFirlatir()
+    {
+        var expiredToken = new RefreshToken
+        {
+            Token = "eski-token",
+            UserId = 1,
+            ExpiresAt = DateTime.UtcNow.AddDays(-1), // geçmişte kalmış
+            IsRevoked = false
+        };
+
+        var mockRefreshRepo = new Mock<IRefreshTokenRepository>();
+        mockRefreshRepo.Setup(r => r.GetByTokenAsync("eski-token")).ReturnsAsync(expiredToken);
+
+        var authService = new AuthService(
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object);
+
+        var request = new RefreshTokenRequestDto { RefreshToken = "eski-token" };
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => authService.RefreshTokenAsync(request));
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_GecerliToken_YeniTokenCiftiUreturVeEskisiniIptalEder()
+    {
+        var validToken = new RefreshToken
+        {
+            Token = "gecerli-token",
+            UserId = 1,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            IsRevoked = false
+        };
+        var activeUser = new User { Id = 1, Email = "a@b.com", FullName = "Test", Status = UserStatus.Active };
+
+        var mockRefreshRepo = new Mock<IRefreshTokenRepository>();
+        mockRefreshRepo.Setup(r => r.GetByTokenAsync("gecerli-token")).ReturnsAsync(validToken);
+
+        var mockUserRepo = new Mock<IUserRepository>();
+        mockUserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(activeUser);
+
+        var authService = new AuthService(mockUserRepo.Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object);
+
+        var request = new RefreshTokenRequestDto { RefreshToken = "gecerli-token" };
+        var result = await authService.RefreshTokenAsync(request);
+
+        Assert.False(string.IsNullOrEmpty(result.Token));
+        Assert.False(string.IsNullOrEmpty(result.RefreshToken));
+        // Rotation: eski token artık iptal edilmiş olmalı - tekrar kullanılamaz.
+        Assert.True(validToken.IsRevoked);
+    }
+
+    [Fact]
+    public async Task LogoutAsync_TokenBulunamazsa_NotFoundExceptionFirlatir()
+    {
+        var mockRefreshRepo = new Mock<IRefreshTokenRepository>();
+        mockRefreshRepo.Setup(r => r.GetByTokenAsync(It.IsAny<string>())).ReturnsAsync((RefreshToken?)null);
+
+        var authService = new AuthService(
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object);
+
+        var request = new RefreshTokenRequestDto { RefreshToken = "olmayan-token" };
+
+        await Assert.ThrowsAsync<NotFoundException>(() => authService.LogoutAsync(request));
+    }
+
+    [Fact]
+    public async Task LogoutAsync_GecerliToken_IsRevokedTrueOlur()
+    {
+        var token = new RefreshToken { Token = "gecerli-token", UserId = 1, IsRevoked = false };
+
+        var mockRefreshRepo = new Mock<IRefreshTokenRepository>();
+        mockRefreshRepo.Setup(r => r.GetByTokenAsync("gecerli-token")).ReturnsAsync(token);
+
+        var authService = new AuthService(
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object);
+
+        await authService.LogoutAsync(new RefreshTokenRequestDto { RefreshToken = "gecerli-token" });
+
+        Assert.True(token.IsRevoked);
+    }
 }

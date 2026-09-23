@@ -106,4 +106,97 @@ public class InternshipNoteServiceTests
         Assert.True(note.IsDeleted);
         Assert.NotNull(note.DeletedAt);
     }
+
+    [Fact]
+    public async Task GetNoteByIdAsync_NotBulunamazsa_NotFoundExceptionFirlatir()
+    {
+        var mockRepo = new Mock<IInternshipNoteRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((InternshipNote?)null);
+
+        var service = new InternshipNoteService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetNoteByIdAsync(userId: 1, noteId: 99));
+    }
+
+    [Fact]
+    public async Task GetNoteByIdAsync_BaskasininNotu_ForbiddenExceptionFirlatir()
+    {
+        var note = new InternshipNote { Id = 1, Content = "İçerik", UserId = 5 };
+
+        var mockRepo = new Mock<IInternshipNoteRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(note);
+
+        var service = new InternshipNoteService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetNoteByIdAsync(userId: 1, noteId: 1));
+    }
+
+    [Fact]
+    public async Task GetNoteByIdAsync_GecerliIstek_NotuDoner()
+    {
+        var note = new InternshipNote { Id = 1, Content = "İçerik", UserId = 1 };
+
+        var mockRepo = new Mock<IInternshipNoteRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(note);
+
+        var service = new InternshipNoteService(mockRepo.Object);
+
+        var result = await service.GetNoteByIdAsync(userId: 1, noteId: 1);
+
+        Assert.Equal(1, result.Id);
+    }
+
+    [Fact]
+    public async Task RestoreNoteAsync_NotBulunamazsa_NotFoundExceptionFirlatir()
+    {
+        var mockRepo = new Mock<IInternshipNoteRepository>();
+        mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(It.IsAny<int>())).ReturnsAsync((InternshipNote?)null);
+
+        var service = new InternshipNoteService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.RestoreNoteAsync(userId: 1, noteId: 99));
+    }
+
+    [Fact]
+    public async Task RestoreNoteAsync_BaskasininNotu_ForbiddenExceptionFirlatir()
+    {
+        var note = new InternshipNote { Id = 1, Content = "İçerik", UserId = 5, IsDeleted = true, DeletedAt = DateTime.UtcNow };
+
+        var mockRepo = new Mock<IInternshipNoteRepository>();
+        mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(note);
+
+        var service = new InternshipNoteService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.RestoreNoteAsync(userId: 1, noteId: 1));
+    }
+
+    [Fact]
+    public async Task RestoreNoteAsync_ZatenSilinmemisse_InvalidOperationExceptionFirlatir()
+    {
+        var note = new InternshipNote { Id = 1, Content = "İçerik", UserId = 1, IsDeleted = false };
+
+        var mockRepo = new Mock<IInternshipNoteRepository>();
+        mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(note);
+
+        var service = new InternshipNoteService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RestoreNoteAsync(userId: 1, noteId: 1));
+    }
+
+    [Fact]
+    public async Task RestoreNoteAsync_GecerliIstek_IsDeletedFalseOlur()
+    {
+        var note = new InternshipNote { Id = 1, Content = "İçerik", UserId = 1, IsDeleted = true, DeletedAt = DateTime.UtcNow };
+
+        var mockRepo = new Mock<IInternshipNoteRepository>();
+        mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(note);
+
+        var service = new InternshipNoteService(mockRepo.Object);
+
+        var result = await service.RestoreNoteAsync(userId: 1, noteId: 1);
+
+        Assert.False(note.IsDeleted);
+        Assert.Null(note.DeletedAt);
+        Assert.Equal(1, result.Id);
+    }
 }

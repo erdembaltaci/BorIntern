@@ -149,4 +149,177 @@ public class TaskServiceTests
         Assert.Equal(1, result.InProgressCount);
         Assert.Equal(2, result.CompletedCount);
     }
+
+    [Fact]
+    public async Task GetTaskByIdAsync_GorevBulunamazsa_NotFoundExceptionFirlatir()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((TaskItem?)null);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetTaskByIdAsync(callerId: 1, taskId: 99));
+    }
+
+    [Fact]
+    public async Task GetTaskByIdAsync_NeAtananNeOlusturan_ForbiddenExceptionFirlatir()
+    {
+        var task = new TaskItem { Id = 1, Title = "Test", AssignedUserId = 5, CreatedByUserId = 2 };
+
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetTaskByIdAsync(callerId: 1, taskId: 1));
+    }
+
+    [Fact]
+    public async Task GetTaskByIdAsync_AtananKullanici_GoreviGorebilir()
+    {
+        var task = new TaskItem { Id = 1, Title = "Test", AssignedUserId = 5, CreatedByUserId = 2 };
+
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        var result = await service.GetTaskByIdAsync(callerId: 5, taskId: 1);
+
+        Assert.Equal(1, result.Id);
+    }
+
+    [Fact]
+    public async Task GetTaskByIdAsync_OlusturanMentor_GoreviGorebilir()
+    {
+        var task = new TaskItem { Id = 1, Title = "Test", AssignedUserId = 5, CreatedByUserId = 2 };
+
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        var result = await service.GetTaskByIdAsync(callerId: 2, taskId: 1);
+
+        Assert.Equal(1, result.Id);
+    }
+
+    [Fact]
+    public async Task DeleteTaskAsync_GorevBulunamazsa_NotFoundExceptionFirlatir()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((TaskItem?)null);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteTaskAsync(mentorId: 1, taskId: 99));
+    }
+
+    [Fact]
+    public async Task DeleteTaskAsync_OlusturanMentorDegilse_ForbiddenExceptionFirlatir()
+    {
+        var task = new TaskItem { Id = 1, Title = "Test", AssignedUserId = 5, CreatedByUserId = 2 };
+
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.DeleteTaskAsync(mentorId: 1, taskId: 1));
+    }
+
+    [Fact]
+    public async Task DeleteTaskAsync_GecerliIstek_SoftDeleteYapilir()
+    {
+        var task = new TaskItem { Id = 1, Title = "Test", AssignedUserId = 5, CreatedByUserId = 2, IsDeleted = false };
+
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        await service.DeleteTaskAsync(mentorId: 2, taskId: 1);
+
+        Assert.True(task.IsDeleted);
+        Assert.NotNull(task.DeletedAt);
+    }
+
+    [Fact]
+    public async Task RestoreTaskAsync_GorevBulunamazsa_NotFoundExceptionFirlatir()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdIncludingDeletedAsync(It.IsAny<int>())).ReturnsAsync((TaskItem?)null);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.RestoreTaskAsync(mentorId: 1, taskId: 99));
+    }
+
+    [Fact]
+    public async Task RestoreTaskAsync_OlusturanMentorDegilse_ForbiddenExceptionFirlatir()
+    {
+        var task = new TaskItem
+        {
+            Id = 1, Title = "Test", AssignedUserId = 5, CreatedByUserId = 2,
+            IsDeleted = true, DeletedAt = DateTime.UtcNow
+        };
+
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(task);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.RestoreTaskAsync(mentorId: 1, taskId: 1));
+    }
+
+    [Fact]
+    public async Task RestoreTaskAsync_ZatenSilinmemisse_InvalidOperationExceptionFirlatir()
+    {
+        var task = new TaskItem { Id = 1, Title = "Test", AssignedUserId = 5, CreatedByUserId = 2, IsDeleted = false };
+
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(task);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RestoreTaskAsync(mentorId: 2, taskId: 1));
+    }
+
+    [Fact]
+    public async Task RestoreTaskAsync_GecerliIstek_IsDeletedFalseOlur()
+    {
+        var task = new TaskItem
+        {
+            Id = 1, Title = "Test", AssignedUserId = 5, CreatedByUserId = 2,
+            IsDeleted = true, DeletedAt = DateTime.UtcNow
+        };
+
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(task);
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        var result = await service.RestoreTaskAsync(mentorId: 2, taskId: 1);
+
+        Assert.False(task.IsDeleted);
+        Assert.Null(task.DeletedAt);
+        Assert.Equal(1, result.Id);
+    }
+
+    [Fact]
+    public async Task GetAllTasksAsync_RepodakiTumGorevleriDtoyaCevirir()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<TaskItem>
+        {
+            new() { Id = 1, Title = "A", AssignedUserId = 5, CreatedByUserId = 1 },
+            new() { Id = 2, Title = "B", AssignedUserId = 6, CreatedByUserId = 1 }
+        });
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        var result = await service.GetAllTasksAsync();
+
+        Assert.Equal(2, result.Count);
+    }
 }
