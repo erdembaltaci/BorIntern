@@ -46,6 +46,35 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
+    // Tekil görev görüntüleme - sahiplik kontrolü (atanan stajyer ya da oluşturan mentor) Service'te.
+    [HttpGet("{taskId}")]
+    public async Task<IActionResult> GetTaskById(int taskId)
+    {
+        var callerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _taskService.GetTaskByIdAsync(callerId, taskId);
+        return Ok(result);
+    }
+
+    // Sadece görevi oluşturan mentor silebilir - soft delete.
+    [Authorize(Roles = "Mentor")]
+    [HttpDelete("{taskId}")]
+    public async Task<IActionResult> DeleteTask(int taskId)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        await _taskService.DeleteTaskAsync(mentorId, taskId);
+        return NoContent();
+    }
+
+    // Silinen bir görevi geri getirir.
+    [Authorize(Roles = "Mentor")]
+    [HttpPost("{taskId}/restore")]
+    public async Task<IActionResult> RestoreTask(int taskId)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _taskService.RestoreTaskAsync(mentorId, taskId);
+        return Ok(result);
+    }
+
     // Mentor, kendi grubundaki bir stajyerin görev özetini (kaç Todo/InProgress/Completed) görür.
     [Authorize(Roles = "Mentor")]
     [HttpGet("summary/{userId}")]

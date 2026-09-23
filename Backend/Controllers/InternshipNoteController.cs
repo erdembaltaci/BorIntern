@@ -34,6 +34,15 @@ public class InternshipNoteController : ControllerBase
         return Ok(result);
     }
 
+    // Tekil not görüntüleme - sadece notun sahibi.
+    [HttpGet("{noteId}")]
+    public async Task<IActionResult> GetNoteById(int noteId)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _noteService.GetNoteByIdAsync(userId, noteId);
+        return Ok(result);
+    }
+
     // Sahiplik kontrolü (sadece kendi notun mu) Service katmanında yapılıyor.
     [HttpPut("{noteId}")]
     public async Task<IActionResult> UpdateNote(int noteId, UpdateNoteRequestDto request)

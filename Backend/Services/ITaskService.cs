@@ -8,6 +8,13 @@ public interface ITaskService
     Task<TaskDto> UpdateTaskStatusAsync(int userId, int taskId, UpdateTaskStatusRequestDto request);
     Task<List<TaskDto>> GetMyTasksAsync(int userId);
 
+    // Tekil görev görüntüleme: sadece görevin sahibi (atanan stajyer) ya da onu oluşturan mentor.
+    Task<TaskDto> GetTaskByIdAsync(int callerId, int taskId);
+
+    // Sadece görevi OLUŞTURAN mentor silebilir/geri getirebilir.
+    Task DeleteTaskAsync(int mentorId, int taskId);
+    Task<TaskDto> RestoreTaskAsync(int mentorId, int taskId);
+
     // Mentor'un, kendi grubundaki bir stajyerin görev özetini (kaç tamamlanmış, kaç devam ediyor) görmesi.
     Task<TaskSummaryDto> GetPerformanceSummaryAsync(int mentorId, int userId);
 

@@ -41,6 +41,16 @@ public class GroupController : ControllerBase
         return Ok(result);
     }
 
+    // Tekil grup görüntüleme - sadece grubun sahibi mentor.
+    [Authorize(Roles = "Mentor")]
+    [HttpGet("{groupId}")]
+    public async Task<IActionResult> GetGroupById(int groupId)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _groupService.GetGroupByIdAsync(mentorId, groupId);
+        return Ok(result);
+    }
+
     // Bir mentor, sadece KENDİ grubuna üye ekleyebilir - sahiplik kontrolü Service içinde yapılıyor.
     [Authorize(Roles = "Mentor")]
     [HttpPost("{groupId}/members")]

@@ -18,6 +18,11 @@ public class TaskRepository : ITaskRepository
         return await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
     }
 
+    public async Task<TaskItem?> GetByIdIncludingDeletedAsync(int id)
+    {
+        return await _context.Tasks.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == id);
+    }
+
     public async Task<List<TaskItem>> GetByAssignedUserIdAsync(int userId)
     {
         return await _context.Tasks.Where(t => t.AssignedUserId == userId).ToListAsync();

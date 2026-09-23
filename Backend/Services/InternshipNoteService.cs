@@ -37,6 +37,22 @@ public class InternshipNoteService : IInternshipNoteService
         return notes.Select(MapToDto).ToList();
     }
 
+    public async Task<InternshipNoteDto> GetNoteByIdAsync(int userId, int noteId)
+    {
+        var note = await _noteRepository.GetByIdAsync(noteId);
+        if (note == null)
+        {
+            throw new NotFoundException("Not bulunamadı.");
+        }
+
+        if (note.UserId != userId)
+        {
+            throw new ForbiddenException("Bu not size ait değil.");
+        }
+
+        return MapToDto(note);
+    }
+
     public async Task<InternshipNoteDto> UpdateNoteAsync(int userId, int noteId, UpdateNoteRequestDto request)
     {
         var note = await _noteRepository.GetByIdAsync(noteId);

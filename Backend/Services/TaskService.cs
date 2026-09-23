@@ -74,6 +74,66 @@ public class TaskService : ITaskService
         return tasks.Select(MapToDto).ToList();
     }
 
+    public async Task<TaskDto> GetTaskByIdAsync(int callerId, int taskId)
+    {
+        var task = await _taskRepository.GetByIdAsync(taskId);
+        if (task == null)
+        {
+            throw new NotFoundException("Görev bulunamadı.");
+        }
+
+        // Ya görevin sahibi (atanan stajyer) ya da onu oluşturan mentor görebilir.
+        if (task.AssignedUserId != callerId && task.CreatedByUserId != callerId)
+        {
+            throw new ForbiddenException("Bu görevi görme yetkiniz yok.");
+        }
+
+        return MapToDto(task);
+    }
+
+    public async Task DeleteTaskAsync(int mentorId, int taskId)
+    {
+        var task = await _taskRepository.GetByIdAsync(taskId);
+        if (task == null)
+        {
+            throw new NotFoundException("Görev bulunamadı.");
+        }
+
+        if (task.CreatedByUserId != mentorId)
+        {
+            throw new ForbiddenException("Bu görevi silme yetkiniz yok.");
+        }
+
+        task.IsDeleted = true;
+        task.DeletedAt = DateTime.UtcNow;
+        await _taskRepository.SaveChangesAsync();
+    }
+
+    public async Task<TaskDto> RestoreTaskAsync(int mentorId, int taskId)
+    {
+        var task = await _taskRepository.GetByIdIncludingDeletedAsync(taskId);
+        if (task == null)
+        {
+            throw new NotFoundException("Görev bulunamadı.");
+        }
+
+        if (task.CreatedByUserId != mentorId)
+        {
+            throw new ForbiddenException("Bu görevi geri getirme yetkiniz yok.");
+        }
+
+        if (!task.IsDeleted)
+        {
+            throw new InvalidOperationException("Bu görev zaten silinmemiş.");
+        }
+
+        task.IsDeleted = false;
+        task.DeletedAt = null;
+        await _taskRepository.SaveChangesAsync();
+
+        return MapToDto(task);
+    }
+
     public async Task<TaskSummaryDto> GetPerformanceSummaryAsync(int mentorId, int userId)
     {
         // Mentor sahiplik kontrolü: sadece kendi grubundaki bir stajyerin özetini görebilir.

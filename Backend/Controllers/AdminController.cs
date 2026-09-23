@@ -49,6 +49,16 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    // Tekil kullanıcı görüntüleme - UserController'daki "me" ile AYNI servis metodunu kullanıyor
+    // (GetProfileAsync sahiplik kontrolü yapmıyor zaten, sadece Id'ye göre buluyor - burada
+    // Admin herhangi bir kullanıcıyı görebildiği için bu, tekrar yazmadan doğrudan uyuyor).
+    [HttpGet("users/{userId}")]
+    public async Task<IActionResult> GetUserById(int userId)
+    {
+        var result = await _userService.GetProfileAsync(userId);
+        return Ok(result);
+    }
+
     // Admin, hangi mentor'a ait olursa olsun TÜM grupları görebilir - GroupController'daki
     // "mine" endpoint'inden farklı olarak burada mentor sahiplik filtresi yok, bilerek.
     [HttpGet("groups")]

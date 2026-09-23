@@ -42,6 +42,22 @@ public class GroupService : IGroupService
         return groups.Select(MapToDto).ToList();
     }
 
+    public async Task<GroupDto> GetGroupByIdAsync(int mentorId, int groupId)
+    {
+        var group = await _groupRepository.GetByIdAsync(groupId);
+        if (group == null)
+        {
+            throw new NotFoundException("Grup bulunamadı.");
+        }
+
+        if (group.MentorId != mentorId)
+        {
+            throw new ForbiddenException("Bu grup size ait değil.");
+        }
+
+        return MapToDto(group);
+    }
+
     public async Task<GroupDto> UpdateGroupNameAsync(int mentorId, int groupId, CreateGroupRequestDto request)
     {
         var group = await _groupRepository.GetByIdAsync(groupId);
