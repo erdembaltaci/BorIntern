@@ -2,14 +2,6 @@
 
 Angular ve ASP.NET Core kullanılarak geliştirilecek basit bir fullstack staj takip uygulaması.
 
-Adım 1 için ayrıntılı çalışma belgesi: [01-gereksinim-ve-tasarim.md](01-gereksinim-ve-tasarim.md)
-
-Onaylanan ekran ve veri tasarımı: [02-ekran-ve-veri-tasarimi.md](02-ekran-ve-veri-tasarimi.md)
-
-Projeyi çalıştırma rehberi: [03-calistirma-ve-gelistirme-akisi.md](03-calistirma-ve-gelistirme-akisi.md)
-
-Katmanlar ve istek akışı: [04-katmanlar-ve-istek-akisi.md](04-katmanlar-ve-istek-akisi.md)
-
 ## Hızlı Kurulum (sıfırdan çalıştırma)
 
 Gizli değerler (`appsettings`'te değil) User Secrets'ta tutulur; bu yüzden repo klonlandıktan sonra aşağıdaki adımlar gerekir. Ön koşullar: .NET SDK, Docker Desktop, `dotnet-ef` aracı (`dotnet tool install --global dotnet-ef`).
