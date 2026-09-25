@@ -11,7 +11,7 @@ public interface IInternshipNoteRepository
     // gelen bu ayrı metoda ihtiyacımız var.
     Task<InternshipNote?> GetByIdIncludingDeletedAsync(int id);
 
-    Task<List<InternshipNote>> GetByUserIdAsync(int userId);
+    Task<(List<InternshipNote> Items, int TotalCount)> GetPagedByUserIdAsync(int userId, int page, int pageSize);
     Task AddAsync(InternshipNote note);
     Task SaveChangesAsync();
 }

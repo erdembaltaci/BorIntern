@@ -25,9 +25,9 @@ public class GroupRepository : IGroupRepository
         return await _context.Groups.IgnoreQueryFilters().FirstOrDefaultAsync(g => g.Id == id);
     }
 
-    public async Task<List<Group>> GetByMentorIdAsync(int mentorId)
+    public async Task<(List<Group> Items, int TotalCount)> GetPagedByMentorIdAsync(int mentorId, int page, int pageSize)
     {
-        return await _context.Groups.Where(g => g.MentorId == mentorId).ToListAsync();
+        return await _context.Groups.Where(g => g.MentorId == mentorId).ToPagedAsync(page, pageSize);
     }
 
     public async Task<bool> GroupNameExistsAsync(string groupName)
@@ -35,9 +35,9 @@ public class GroupRepository : IGroupRepository
         return await _context.Groups.AnyAsync(g => g.Name == groupName);
     }
 
-    public async Task<List<Group>> GetAllGroupsAsync()
+    public async Task<(List<Group> Items, int TotalCount)> GetPagedAllAsync(int page, int pageSize)
     {
-        return await _context.Groups.ToListAsync();
+        return await _context.Groups.ToPagedAsync(page, pageSize);
     }
 
     public async Task AddAsync(Group group)

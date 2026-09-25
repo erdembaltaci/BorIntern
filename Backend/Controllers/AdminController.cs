@@ -1,6 +1,8 @@
+using Backend.Dtos;
 using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Backend.Controllers;
 
@@ -35,17 +37,27 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("users")]
-    public async Task<IActionResult> GetAllUsers()
+    // Register herkesi Intern oluşturur; Mentor/Admin ancak buradan atanır.
+    // Rol JWT'nin içinde taşındığı için, yeni rol kullanıcı yeniden login olunca geçerli olur.
+    [HttpPut("users/{userId}/role")]
+    public async Task<IActionResult> ChangeUserRole(int userId, UpdateUserRoleRequestDto request)
     {
-        var result = await _userService.GetAllUsersAsync();
+        var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _userService.ChangeUserRoleAsync(adminId, userId, request);
+        return Ok(result);
+    }
+
+    [HttpGet("users")]
+    public async Task<IActionResult> GetAllUsers(int page = 1, int pageSize = Pagination.DefaultPageSize)
+    {
+        var result = await _userService.GetAllUsersAsync(page, pageSize);
         return Ok(result);
     }
 
     [HttpGet("users/pending")]
-    public async Task<IActionResult> GetPendingUsers()
+    public async Task<IActionResult> GetPendingUsers(int page = 1, int pageSize = Pagination.DefaultPageSize)
     {
-        var result = await _userService.GetPendingUsersAsync();
+        var result = await _userService.GetPendingUsersAsync(page, pageSize);
         return Ok(result);
     }
 
@@ -62,17 +74,17 @@ public class AdminController : ControllerBase
     // Admin, hangi mentor'a ait olursa olsun TÜM grupları görebilir - GroupController'daki
     // "mine" endpoint'inden farklı olarak burada mentor sahiplik filtresi yok, bilerek.
     [HttpGet("groups")]
-    public async Task<IActionResult> GetAllGroups()
+    public async Task<IActionResult> GetAllGroups(int page = 1, int pageSize = Pagination.DefaultPageSize)
     {
-        var result = await _groupService.GetAllGroupsAsync();
+        var result = await _groupService.GetAllGroupsAsync(page, pageSize);
         return Ok(result);
     }
 
     // Admin, hangi kullanıcıya atanmış olursa olsun TÜM görevleri görebilir.
     [HttpGet("tasks")]
-    public async Task<IActionResult> GetAllTasks()
+    public async Task<IActionResult> GetAllTasks(int page = 1, int pageSize = Pagination.DefaultPageSize)
     {
-        var result = await _taskService.GetAllTasksAsync();
+        var result = await _taskService.GetAllTasksAsync(page, pageSize);
         return Ok(result);
     }
 }

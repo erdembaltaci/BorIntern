@@ -44,16 +44,44 @@ public class UserService : IUserService
         return MapToDto(user);
     }
 
-    public async Task<List<UserDto>> GetAllUsersAsync()
+    public async Task<PagedResultDto<UserDto>> GetAllUsersAsync(int page, int pageSize)
     {
-        var users = await _userRepository.GetAllAsync();
-        return users.Select(MapToDto).ToList();
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (users, totalCount) = await _userRepository.GetPagedAsync(page, pageSize);
+        return PagedResultDto<UserDto>.Create(users.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
-    public async Task<List<UserDto>> GetPendingUsersAsync()
+    public async Task<PagedResultDto<UserDto>> GetPendingUsersAsync(int page, int pageSize)
     {
-        var users = await _userRepository.GetByStatusAsync(UserStatus.Pending);
-        return users.Select(MapToDto).ToList();
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (users, totalCount) = await _userRepository.GetPagedByStatusAsync(UserStatus.Pending, page, pageSize);
+        return PagedResultDto<UserDto>.Create(users.Select(MapToDto).ToList(), page, pageSize, totalCount);
+    }
+
+    public async Task<UserDto> ChangeUserRoleAsync(int adminId, int userId, UpdateUserRoleRequestDto request)
+    {
+        // Admin kendi rolünü düşürüp sistemi yönetimsiz bırakmasın.
+        if (adminId == userId)
+        {
+            throw new InvalidOperationException("Kendi rolünüzü değiştiremezsiniz.");
+        }
+
+        // Enum.TryParse "99" gibi sayısal metinleri de kabul eder; IsDefined tanımsız değerleri eler.
+        if (!Enum.TryParse<UserRole>(request.Role, ignoreCase: true, out var newRole) || !Enum.IsDefined(newRole))
+        {
+            throw new InvalidOperationException("Geçersiz rol.");
+        }
+
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new NotFoundException("Kullanıcı bulunamadı.");
+        }
+
+        user.Role = newRole;
+        await _userRepository.SaveChangesAsync();
+
+        return MapToDto(user);
     }
 
     public async Task<UserDto> GetProfileAsync(int userId)

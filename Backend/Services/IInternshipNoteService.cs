@@ -5,7 +5,7 @@ namespace Backend.Services;
 public interface IInternshipNoteService
 {
     Task<InternshipNoteDto> CreateNoteAsync(int userId, CreateNoteRequestDto request);
-    Task<List<InternshipNoteDto>> GetMyNotesAsync(int userId);
+    Task<PagedResultDto<InternshipNoteDto>> GetMyNotesAsync(int userId, int page, int pageSize);
 
     // Tekil not görüntüleme - sadece notun sahibi.
     Task<InternshipNoteDto> GetNoteByIdAsync(int userId, int noteId);

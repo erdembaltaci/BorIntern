@@ -35,7 +35,7 @@ public class AuthService : IAuthService
         bool emailExists = await _userRepository.EmailExistsAsync(request.Email);
         if (emailExists)
         {
-            throw new InvalidOperationException("Bu email adresi zaten kayıtlı.");
+            throw new ConflictException("Bu email adresi zaten kayıtlı.");
         }
 
         var user = new User

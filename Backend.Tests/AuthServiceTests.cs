@@ -84,7 +84,7 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_VarOlanEmail_InvalidOperationExceptionFirlatir()
+    public async Task RegisterAsync_VarOlanEmail_ConflictExceptionFirlatir()
     {
         var mockUserRepository = new Mock<IUserRepository>();
         mockUserRepository.Setup(r => r.EmailExistsAsync("test@example.com")).ReturnsAsync(true);
@@ -101,7 +101,7 @@ public class AuthServiceTests
             Password = "Sifre123!"
         };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => authService.RegisterAsync(request));
+        await Assert.ThrowsAsync<ConflictException>(() => authService.RegisterAsync(request));
     }
 
     [Fact]

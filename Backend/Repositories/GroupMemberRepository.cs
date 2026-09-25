@@ -18,9 +18,9 @@ public class GroupMemberRepository : IGroupMemberRepository
         return await _context.GroupMembers.AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
     }
 
-    public async Task<List<GroupMember>> GetByGroupIdAsync(int groupId)
+    public async Task<(List<GroupMember> Items, int TotalCount)> GetPagedByGroupIdAsync(int groupId, int page, int pageSize)
     {
-        return await _context.GroupMembers.Where(gm => gm.GroupId == groupId).ToListAsync();
+        return await _context.GroupMembers.Where(gm => gm.GroupId == groupId).ToPagedAsync(page, pageSize);
     }
 
     public async Task<GroupMember?> GetByGroupAndUserAsync(int groupId, int userId)

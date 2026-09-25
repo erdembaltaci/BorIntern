@@ -310,16 +310,36 @@ public class TaskServiceTests
     public async Task GetAllTasksAsync_RepodakiTumGorevleriDtoyaCevirir()
     {
         var mockTaskRepo = new Mock<ITaskRepository>();
-        mockTaskRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<TaskItem>
+        mockTaskRepo.Setup(r => r.GetPagedAllAsync(1, 20)).ReturnsAsync((new List<TaskItem>
         {
             new() { Id = 1, Title = "A", AssignedUserId = 5, CreatedByUserId = 1 },
             new() { Id = 2, Title = "B", AssignedUserId = 6, CreatedByUserId = 1 }
-        });
+        }, 2));
 
         var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
 
-        var result = await service.GetAllTasksAsync();
+        var result = await service.GetAllTasksAsync(page: 1, pageSize: 20);
 
-        Assert.Equal(2, result.Count);
+        Assert.Equal(2, result.Items.Count);
+    }
+
+    [Fact]
+    public async Task GetMyTasksAsync_SayfaBilgisiVeToplamKayitSayisiDoner()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetPagedByAssignedUserIdAsync(5, 2, 10)).ReturnsAsync((new List<TaskItem>
+        {
+            new() { Id = 11, Title = "A", AssignedUserId = 5, CreatedByUserId = 1 }
+        }, 11));
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+
+        var result = await service.GetMyTasksAsync(userId: 5, page: 2, pageSize: 10);
+
+        Assert.Single(result.Items);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(10, result.PageSize);
+        Assert.Equal(11, result.TotalCount);
+        Assert.Equal(2, result.TotalPages);
     }
 }

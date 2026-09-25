@@ -5,7 +5,7 @@ namespace Backend.Services;
 public interface IGroupService
 {
     Task<GroupDto> CreateGroupAsync(int mentorId, CreateGroupRequestDto request);
-    Task<List<GroupDto>> GetMyGroupsAsync(int mentorId);
+    Task<PagedResultDto<GroupDto>> GetMyGroupsAsync(int mentorId, int page, int pageSize);
 
     // Tekil grup görüntüleme - sadece grubun sahibi mentor.
     Task<GroupDto> GetGroupByIdAsync(int mentorId, int groupId);
@@ -14,5 +14,5 @@ public interface IGroupService
     Task<GroupDto> RestoreGroupAsync(int mentorId, int groupId);
 
     // Admin, tüm mentor'ların gruplarını görebilir (mentor sahiplik kontrolü YOK - bilerek).
-    Task<List<GroupDto>> GetAllGroupsAsync();
+    Task<PagedResultDto<GroupDto>> GetAllGroupsAsync(int page, int pageSize);
 }

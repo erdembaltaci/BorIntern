@@ -11,7 +11,7 @@ namespace Backend.Tests;
 public class GroupServiceTests
 {
     [Fact]
-    public async Task CreateGroupAsync_AyniIsimdeGrupVarsa_InvalidOperationExceptionFirlatir()
+    public async Task CreateGroupAsync_AyniIsimdeGrupVarsa_ConflictExceptionFirlatir()
     {
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GroupNameExistsAsync("Backend Ekibi")).ReturnsAsync(true);
@@ -20,7 +20,7 @@ public class GroupServiceTests
 
         var request = new CreateGroupRequestDto { Name = "Backend Ekibi" };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateGroupAsync(mentorId: 1, request));
+        await Assert.ThrowsAsync<ConflictException>(() => service.CreateGroupAsync(mentorId: 1, request));
     }
 
     [Fact]
@@ -50,18 +50,19 @@ public class GroupServiceTests
     public async Task GetMyGroupsAsync_RepodanGelenListeyiDtoyaCevirir()
     {
         var mockRepo = new Mock<IGroupRepository>();
-        mockRepo.Setup(r => r.GetByMentorIdAsync(1)).ReturnsAsync(new List<Group>
+        mockRepo.Setup(r => r.GetPagedByMentorIdAsync(1, 1, 20)).ReturnsAsync((new List<Group>
         {
             new() { Id = 1, Name = "Grup A", MentorId = 1 },
             new() { Id = 2, Name = "Grup B", MentorId = 1 }
-        });
+        }, 2));
 
         var service = new GroupService(mockRepo.Object);
 
-        var result = await service.GetMyGroupsAsync(1);
+        var result = await service.GetMyGroupsAsync(1, page: 1, pageSize: 20);
 
-        Assert.Equal(2, result.Count);
-        Assert.Contains(result, g => g.Name == "Grup A");
+        Assert.Equal(2, result.Items.Count);
+        Assert.Equal(2, result.TotalCount);
+        Assert.Contains(result.Items, g => g.Name == "Grup A");
     }
 
     [Fact]
@@ -184,16 +185,47 @@ public class GroupServiceTests
     public async Task GetAllGroupsAsync_TumGruplariMentorFiltresiOlmadanDoner()
     {
         var mockRepo = new Mock<IGroupRepository>();
-        mockRepo.Setup(r => r.GetAllGroupsAsync()).ReturnsAsync(new List<Group>
+        mockRepo.Setup(r => r.GetPagedAllAsync(1, 20)).ReturnsAsync((new List<Group>
         {
             new() { Id = 1, Name = "Grup A", MentorId = 1 },
             new() { Id = 2, Name = "Grup B", MentorId = 2 }
-        });
+        }, 2));
 
         var service = new GroupService(mockRepo.Object);
 
-        var result = await service.GetAllGroupsAsync();
+        var result = await service.GetAllGroupsAsync(page: 1, pageSize: 20);
 
-        Assert.Equal(2, result.Count);
+        Assert.Equal(2, result.Items.Count);
+    }
+
+    [Fact]
+    public async Task UpdateGroupNameAsync_AyniIsimBaskaGrupta_ConflictExceptionFirlatir()
+    {
+        var group = new Group { Id = 1, Name = "Eski Isim", MentorId = 1 };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
+        mockRepo.Setup(r => r.GroupNameExistsAsync("Baska Grubun Adi")).ReturnsAsync(true);
+
+        var service = new GroupService(mockRepo.Object);
+
+        await Assert.ThrowsAsync<ConflictException>(
+            () => service.UpdateGroupNameAsync(1, 1, new CreateGroupRequestDto { Name = "Baska Grubun Adi" }));
+    }
+
+    [Fact]
+    public async Task UpdateGroupNameAsync_GrupAdiniAynenKorursa_HataVermez()
+    {
+        var group = new Group { Id = 1, Name = "Ayni Isim", MentorId = 1 };
+
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
+        mockRepo.Setup(r => r.GroupNameExistsAsync("Ayni Isim")).ReturnsAsync(true);
+
+        var service = new GroupService(mockRepo.Object);
+
+        var result = await service.UpdateGroupNameAsync(1, 1, new CreateGroupRequestDto { Name = "Ayni Isim" });
+
+        Assert.Equal("Ayni Isim", result.Name);
     }
 }

@@ -33,6 +33,10 @@ public class ExceptionHandlingMiddleware
         {
             await WriteResponseAsync(context, StatusCodes.Status403Forbidden, ex.Message);
         }
+        catch (ConflictException ex)
+        {
+            await WriteResponseAsync(context, StatusCodes.Status409Conflict, ex.Message);
+        }
         catch (InvalidOperationException ex)
         {
             // Diğer tüm "beklenen" iş kuralı hataları (örn. "email zaten kayıtlı") -> 400.

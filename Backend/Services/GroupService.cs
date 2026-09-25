@@ -21,7 +21,7 @@ public class GroupService : IGroupService
         bool nameExists = await _groupRepository.GroupNameExistsAsync(request.Name);
         if (nameExists)
         {
-            throw new InvalidOperationException("Bu grup adı zaten kullanılıyor.");
+            throw new ConflictException("Bu grup adı zaten kullanılıyor.");
         }
 
         var group = new Group
@@ -36,10 +36,11 @@ public class GroupService : IGroupService
         return MapToDto(group);
     }
 
-    public async Task<List<GroupDto>> GetMyGroupsAsync(int mentorId)
+    public async Task<PagedResultDto<GroupDto>> GetMyGroupsAsync(int mentorId, int page, int pageSize)
     {
-        var groups = await _groupRepository.GetByMentorIdAsync(mentorId);
-        return groups.Select(MapToDto).ToList();
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (groups, totalCount) = await _groupRepository.GetPagedByMentorIdAsync(mentorId, page, pageSize);
+        return PagedResultDto<GroupDto>.Create(groups.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
     public async Task<GroupDto> GetGroupByIdAsync(int mentorId, int groupId)
@@ -74,7 +75,7 @@ public class GroupService : IGroupService
         bool nameExists = await _groupRepository.GroupNameExistsAsync(request.Name);
         if (nameExists && group.Name != request.Name)
         {
-            throw new InvalidOperationException("Bu grup adı zaten kullanılıyor.");
+            throw new ConflictException("Bu grup adı zaten kullanılıyor.");
         }
 
         group.Name = request.Name;
@@ -130,10 +131,11 @@ public class GroupService : IGroupService
         return MapToDto(group);
     }
 
-    public async Task<List<GroupDto>> GetAllGroupsAsync()
+    public async Task<PagedResultDto<GroupDto>> GetAllGroupsAsync(int page, int pageSize)
     {
-        var groups = await _groupRepository.GetAllGroupsAsync();
-        return groups.Select(MapToDto).ToList();
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (groups, totalCount) = await _groupRepository.GetPagedAllAsync(page, pageSize);
+        return PagedResultDto<GroupDto>.Create(groups.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
     private static GroupDto MapToDto(Group group)

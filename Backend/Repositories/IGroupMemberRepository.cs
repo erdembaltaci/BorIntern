@@ -5,7 +5,7 @@ namespace Backend.Repositories;
 public interface IGroupMemberRepository
 {
     Task<bool> IsUserInGroupAsync(int groupId, int userId);
-    Task<List<GroupMember>> GetByGroupIdAsync(int groupId);
+    Task<(List<GroupMember> Items, int TotalCount)> GetPagedByGroupIdAsync(int groupId, int page, int pageSize);
 
     // Belirli bir GroupMember kaydını (silmek/güncellemek için) bulmaya yarar.
     Task<GroupMember?> GetByGroupAndUserAsync(int groupId, int userId);

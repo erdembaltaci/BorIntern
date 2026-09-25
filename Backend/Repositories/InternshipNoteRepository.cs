@@ -25,9 +25,9 @@ public class InternshipNoteRepository : IInternshipNoteRepository
         return await _context.InternshipNotes.IgnoreQueryFilters().FirstOrDefaultAsync(n => n.Id == id);
     }
 
-    public async Task<List<InternshipNote>> GetByUserIdAsync(int userId)
+    public async Task<(List<InternshipNote> Items, int TotalCount)> GetPagedByUserIdAsync(int userId, int page, int pageSize)
     {
-        return await _context.InternshipNotes.Where(n => n.UserId == userId).ToListAsync();
+        return await _context.InternshipNotes.Where(n => n.UserId == userId).ToPagedAsync(page, pageSize);
     }
 
     public async Task AddAsync(InternshipNote note)

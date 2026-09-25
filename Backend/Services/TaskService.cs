@@ -68,10 +68,11 @@ public class TaskService : ITaskService
         return MapToDto(task);
     }
 
-    public async Task<List<TaskDto>> GetMyTasksAsync(int userId)
+    public async Task<PagedResultDto<TaskDto>> GetMyTasksAsync(int userId, int page, int pageSize)
     {
-        var tasks = await _taskRepository.GetByAssignedUserIdAsync(userId);
-        return tasks.Select(MapToDto).ToList();
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (tasks, totalCount) = await _taskRepository.GetPagedByAssignedUserIdAsync(userId, page, pageSize);
+        return PagedResultDto<TaskDto>.Create(tasks.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
     public async Task<TaskDto> GetTaskByIdAsync(int callerId, int taskId)
@@ -154,10 +155,11 @@ public class TaskService : ITaskService
         };
     }
 
-    public async Task<List<TaskDto>> GetAllTasksAsync()
+    public async Task<PagedResultDto<TaskDto>> GetAllTasksAsync(int page, int pageSize)
     {
-        var tasks = await _taskRepository.GetAllAsync();
-        return tasks.Select(MapToDto).ToList();
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (tasks, totalCount) = await _taskRepository.GetPagedAllAsync(page, pageSize);
+        return PagedResultDto<TaskDto>.Create(tasks.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
     private static TaskDto MapToDto(TaskItem task)

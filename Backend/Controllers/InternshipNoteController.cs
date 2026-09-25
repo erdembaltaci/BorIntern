@@ -27,10 +27,10 @@ public class InternshipNoteController : ControllerBase
     }
 
     [HttpGet("mine")]
-    public async Task<IActionResult> GetMyNotes()
+    public async Task<IActionResult> GetMyNotes(int page = 1, int pageSize = Pagination.DefaultPageSize)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var result = await _noteService.GetMyNotesAsync(userId);
+        var result = await _noteService.GetMyNotesAsync(userId, page, pageSize);
         return Ok(result);
     }
 

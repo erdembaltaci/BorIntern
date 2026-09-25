@@ -33,7 +33,7 @@ public class GroupMemberService : IGroupMemberService
         bool alreadyMember = await _groupMemberRepository.IsUserInGroupAsync(groupId, request.UserId);
         if (alreadyMember)
         {
-            throw new InvalidOperationException("Bu kullanıcı zaten grubun üyesi.");
+            throw new ConflictException("Bu kullanıcı zaten grubun üyesi.");
         }
 
         var groupMember = new GroupMember
@@ -48,7 +48,7 @@ public class GroupMemberService : IGroupMemberService
         return MapToDto(groupMember);
     }
 
-    public async Task<List<GroupMemberDto>> GetGroupMembersAsync(int callerId, int groupId)
+    public async Task<PagedResultDto<GroupMemberDto>> GetGroupMembersAsync(int callerId, int groupId, int page, int pageSize)
     {
         var group = await _groupRepository.GetByIdAsync(groupId);
         if (group == null)
@@ -65,8 +65,9 @@ public class GroupMemberService : IGroupMemberService
             throw new ForbiddenException("Bu grubun üyelerini görme yetkiniz yok.");
         }
 
-        var members = await _groupMemberRepository.GetByGroupIdAsync(groupId);
-        return members.Select(MapToDto).ToList();
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (members, totalCount) = await _groupMemberRepository.GetPagedByGroupIdAsync(groupId, page, pageSize);
+        return PagedResultDto<GroupMemberDto>.Create(members.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
     public async Task RemoveMemberAsync(int mentorId, int groupId, int userId)

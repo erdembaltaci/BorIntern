@@ -28,9 +28,14 @@ public class TaskRepository : ITaskRepository
         return await _context.Tasks.Where(t => t.AssignedUserId == userId).ToListAsync();
     }
 
-    public async Task<List<TaskItem>> GetAllAsync()
+    public async Task<(List<TaskItem> Items, int TotalCount)> GetPagedByAssignedUserIdAsync(int userId, int page, int pageSize)
     {
-        return await _context.Tasks.ToListAsync();
+        return await _context.Tasks.Where(t => t.AssignedUserId == userId).ToPagedAsync(page, pageSize);
+    }
+
+    public async Task<(List<TaskItem> Items, int TotalCount)> GetPagedAllAsync(int page, int pageSize)
+    {
+        return await _context.Tasks.ToPagedAsync(page, pageSize);
     }
 
     public async Task AddAsync(TaskItem task)

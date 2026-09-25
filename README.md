@@ -10,6 +10,91 @@ Projeyi çalıştırma rehberi: [03-calistirma-ve-gelistirme-akisi.md](03-calist
 
 Katmanlar ve istek akışı: [04-katmanlar-ve-istek-akisi.md](04-katmanlar-ve-istek-akisi.md)
 
+## Hızlı Kurulum (sıfırdan çalıştırma)
+
+Gizli değerler (`appsettings`'te değil) User Secrets'ta tutulur; bu yüzden repo klonlandıktan sonra aşağıdaki adımlar gerekir. Ön koşullar: .NET SDK, Docker Desktop, `dotnet-ef` aracı (`dotnet tool install --global dotnet-ef`).
+
+**1. SQL Server'ı Docker'da ayağa kaldır** (veri `borblog-sql-data` volume'ünde kalıcıdır; şifre SQL Server kurallarına uymalı: 8+ karakter, büyük/küçük harf, rakam, sembol):
+
+```bash
+docker run -d --name borblog-sql -p 1433:1433 -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=<SIFRE>" -v borblog-sql-data:/var/opt/mssql --restart unless-stopped mcr.microsoft.com/mssql/server:2022-latest
+```
+
+**2. Gizli değerleri ayarla** (`Backend` klasöründe; `UserSecretsId` `Backend.csproj`'da zaten tanımlı). `Jwt:Key` en az 32 karakter olmalı (HMAC-SHA256):
+
+```bash
+cd Backend
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost,1433;Database=BorBlogDb;User Id=sa;Password=<SIFRE>;TrustServerCertificate=True"
+dotnet user-secrets set "Jwt:Key" "<en az 32 karakterlik rastgele bir metin>"
+dotnet user-secrets set "Jwt:Issuer" "BorBlogApi"
+dotnet user-secrets set "Jwt:Audience" "BorBlogClient"
+```
+
+**3. Veritabanı şemasını oluştur, çalıştır, test et:**
+
+```bash
+dotnet ef database update      # migration'lardan tabloları kurar
+dotnet run                     # http://localhost:5291/swagger
+dotnet test ../Backend.Tests   # unit testler
+```
+
+**4. İlk Admin'i elle ata.** Register her zaman Intern + Pending oluşturur. Diğer roller (Mentor/Admin) Admin tarafından `PUT /api/admin/users/{id}/role` ile atanır (body: `{"role":"Mentor"}`), ama ilk Admin'i bir kez SQL ile atamak gerekir (Role: 0=Intern, 1=Mentor, 2=Admin; Status: 0=Pending, 1=Active, 2=Inactive):
+
+```sql
+UPDATE Users SET Role = 2, Status = 1 WHERE Email = 'ornek@mail.com';
+```
+
+**Veritabanını başka bir sunucuya taşımak** kod değişikliği gerektirmez: yeni sunucuda `dotnet ef database update` çalıştır (veri de gerekiyorsa `BACKUP`/`RESTORE`), sonra `ConnectionStrings:DefaultConnection` değerini yeni adresle güncelle. Production'da aynı anahtar ortam değişkeninden okunur: `ConnectionStrings__DefaultConnection`.
+
+## API Uç Noktaları (36)
+
+Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Yetki (rol) kontrolü `[Authorize]` ile, sahiplik kontrolü (kayıt sahibi/ilgili mentor olma şartı) serviste yapılır.
+
+| Uç nokta | Kim | Ne yapar |
+|---|---|---|
+| **Auth** | | |
+| `POST /api/auth/register` | Herkes | Kayıt: Intern + Pending oluşur, token dönmez |
+| `POST /api/auth/login` | Herkes (IP başına dakikada 5) | Giriş: sadece Active kullanıcıya JWT + refresh token |
+| `POST /api/auth/refresh` | Herkes | Refresh token ile yeni token çifti (tek kullanımlık) |
+| `POST /api/auth/logout` | Herkes | Refresh token'ı iptal eder |
+| **Profil** | | |
+| `GET /api/users/me` | Giriş yapmış herkes | Kendi profilini görür |
+| `PUT /api/users/me` | Giriş yapmış herkes | Kendi adını günceller |
+| **Admin** | | |
+| `GET /api/admin/users` | Admin | Tüm kullanıcılar |
+| `GET /api/admin/users/pending` | Admin | Onay bekleyenler (Pending) |
+| `GET /api/admin/users/{id}` | Admin | Tekil kullanıcı |
+| `POST /api/admin/approve-user/{id}` | Admin | Pending → Active |
+| `POST /api/admin/deactivate-user/{id}` | Admin | Active → Inactive |
+| `PUT /api/admin/users/{id}/role` | Admin | Rol atar (kendi rolünü değiştiremez) |
+| `GET /api/admin/groups` | Admin | Tüm gruplar |
+| `GET /api/admin/tasks` | Admin | Tüm görevler |
+| **Grup** | | |
+| `POST /api/groups` | Mentor | Grup oluşturur |
+| `GET /api/groups/mine` | Mentor | Kendi grupları |
+| `GET /api/groups/{id}` | Mentor (sahibi) | Tekil grup |
+| `PUT /api/groups/{id}` | Mentor (sahibi) | Grup adını günceller |
+| `DELETE /api/groups/{id}` | Mentor (sahibi) | Soft delete |
+| `POST /api/groups/{id}/restore` | Mentor (sahibi) | Silinen grubu geri getirir |
+| `POST /api/groups/{id}/members` | Mentor (sahibi) | Üye ekler |
+| `GET /api/groups/{id}/members` | Grubun mentoru veya üyesi | Üyeleri listeler |
+| `DELETE /api/groups/{id}/members/{userId}` | Mentor (sahibi) | Üyeyi çıkarır (soft) |
+| **Görev** | | |
+| `POST /api/tasks` | Mentor | Kendi grubundaki stajyere görev atar |
+| `GET /api/tasks/mine` | Giriş yapmış herkes | Kendine atanan görevler |
+| `GET /api/tasks/{id}` | Atanan stajyer veya oluşturan mentor | Tekil görev |
+| `PUT /api/tasks/{id}/status` | Atanan stajyer | Durumu günceller (Todo/InProgress/Completed) |
+| `DELETE /api/tasks/{id}` | Oluşturan mentor | Soft delete |
+| `POST /api/tasks/{id}/restore` | Oluşturan mentor | Geri getirir |
+| `GET /api/tasks/summary/{userId}` | Mentor (kendi grubundaki stajyer) | Durum sayıları özeti |
+| **Not** | | |
+| `POST /api/notes` | Giriş yapmış herkes | Günlük not ekler |
+| `GET /api/notes/mine` | Giriş yapmış herkes | Kendi notları |
+| `GET /api/notes/{id}` | Notun sahibi | Tekil not |
+| `PUT /api/notes/{id}` | Notun sahibi | Günceller |
+| `DELETE /api/notes/{id}` | Notun sahibi | Soft delete |
+| `POST /api/notes/{id}/restore` | Notun sahibi | Geri getirir |
+
 ## 1. Projenin Amacı
 
 Stajyerlerin görevlerini ve günlük staj notlarını takip etmek; yöneticinin stajyerleri ve görevleri yönetebilmesini sağlamak.
@@ -68,7 +153,7 @@ Id, FullName, Email, PasswordHash, Role, Status, CreatedAt
 
 ### Admin
 
-- Kullanıcıları onaylama veya pasifleştirme
+- Kullanıcıları onaylama, pasifleştirme ve rol atama (Mentor/Admin)
 - Tüm görev ve grupları yönetme
 
 ## 4. Veri Modelleri
@@ -106,18 +191,24 @@ Id, FullName, Email, PasswordHash, Role, Status, CreatedAt
 ```text
 BorBlog/
 ├── Backend/
-│   ├── Controllers/
-│   ├── Data/
-│   ├── Entities/
-│   ├── Dtos/
-│   ├── Services/
+│   ├── Controllers/          (HTTP katmanı, iş kuralı yok)
+│   ├── Services/             (iş kuralları ve sahiplik kontrolleri)
+│   ├── Repositories/         (veritabanı sorguları, AppDbContext sadece burada)
+│   ├── Entities/             (BaseEntity, SoftDeletableEntity ve tablolar)
+│   ├── Dtos/                 (istek/cevap modelleri, sayfalama)
+│   ├── Data/                 (AppDbContext, soft delete query filter'ları)
+│   ├── Middleware/           (ExceptionHandling, RequestLogging)
+│   ├── Exceptions/           (NotFound, Unauthorized, Forbidden, Conflict)
+│   ├── BackgroundServices/   (süresi dolan refresh token temizliği)
 │   ├── Migrations/
-│   └── Program.cs
-├── Frontend/            (henüz oluşturulmadı)
+│   └── Program.cs            (DI, JWT, CORS, rate limit, middleware sırası)
+├── Backend.Tests/            (xUnit + Moq unit testleri)
+├── Frontend/                 (henüz oluşturulmadı)
 │   └── src/app/
 │       ├── core/
 │       ├── shared/
 │       └── features/
+├── BorBlog.slnx
 └── README.md
 ```
 
@@ -152,20 +243,7 @@ BorBlog/
 - JWT access token üret.
 - Token olmadan korumalı endpoint'lere erişimi engelle.
 
-Örnek endpoint'ler:
-
-```text
-POST /api/auth/register
-POST /api/auth/login
-GET  /api/tasks
-POST /api/tasks
-PUT  /api/tasks/{id}
-DELETE /api/tasks/{id}
-GET  /api/notes
-POST /api/notes
-GET  /api/admin/users
-PUT  /api/admin/users/{id}/approve
-```
+Uç noktaların güncel ve tam listesi yukarıdaki **API Uç Noktaları** bölümünde.
 
 ### Adım 5: Angular başlangıcı
 
@@ -253,24 +331,27 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 
 **Altyapı:** Git+GitHub, Docker'da SQL Server (kalıcı volume), User Secrets ile gizli veri yönetimi, `BorBlog.slnx` altında `Backend` + `Backend.Tests`.
 
-**Mimari:** Tam N-katmanlı yapı — `Controller → Service → Repository → AppDbContext`. `BaseEntity`/`SoftDeletableEntity` ile ortak alanlar tekilleştirildi. Özel exception tipleri (`NotFoundException`/`UnauthorizedException`/`ForbiddenException`) + `ExceptionHandlingMiddleware` ile controller'larda `try/catch` yok, hatalar merkezi olarak doğru HTTP koduna çevriliyor.
+**Mimari:** Tam N-katmanlı yapı — `Controller → Service → Repository → AppDbContext`. `BaseEntity`/`SoftDeletableEntity` ile ortak alanlar tekilleştirildi. Özel exception tipleri (`NotFoundException`/`UnauthorizedException`/`ForbiddenException`/`ConflictException`) + `ExceptionHandlingMiddleware` ile controller'larda `try/catch` yok, hatalar merkezi olarak doğru HTTP koduna çevriliyor. `RequestLoggingMiddleware` her isteğin giriş/çıkışını ve HTTP kodunu loglar.
 
-**Auth & Güvenlik:** Register/Login/Refresh/Logout, JWT (1 saat) + refresh token (7 gün, tek kullanımlık/rotation), rol bazlı yetkilendirme (`[Authorize(Roles=...)]`), sahiplik kontrolleri (mentor/stajyer kendi kaydına erişir), `/api/auth/login` için rate limiting (IP başına dakikada 5 deneme), tüm request DTO'larında DataAnnotations validasyonu, CORS (`localhost:4200` için hazır).
+**Auth & Güvenlik:** Register/Login/Refresh/Logout, JWT (1 saat) + refresh token (7 gün, tek kullanımlık/rotation), rol bazlı yetkilendirme (`[Authorize(Roles=...)]`), sahiplik kontrolleri (mentor/stajyer kendi kaydına erişir), `/api/auth/login` için rate limiting (IP başına dakikada 5 deneme), tüm request DTO'larında DataAnnotations validasyonu, CORS (`localhost:4200` için hazır), çakışmalarda (aynı e-posta/grup adı/üyelik) 409 Conflict, süresi dolan refresh token'ların arka plan servisiyle (`RefreshTokenCleanupService`, açılışta ve 6 saatte bir) silinmesi.
+
+**Sayfalama:** Tüm liste uç noktaları `?page=1&pageSize=20` alır (varsayılan 20, en fazla 100; geçersiz değerler varsayılana çekilir). Cevap biçimi: `{ items, page, pageSize, totalCount, totalPages }`.
 
 **Özellikler (tam CRUD, sahiplik kontrollü):**
-- **User:** register/login/profil (görüntüle+güncelle)/Admin onay-pasifleştirme-listeleme
-- **Group:** oluşturma/listeleme/isim güncelleme/silme(soft)/restore, Admin tüm grupları görebilir
-- **GroupMember:** üye ekleme/listeleme/çıkarma(soft)
-- **Task:** oluşturma/durum güncelleme/listeleme/performans özeti, Admin tüm görevleri görebilir
-- **InternshipNote:** ekleme/listeleme/güncelleme/silme(soft)/restore
+- **User:** register/login/refresh/logout/profil (görüntüle+güncelle); Admin: onay, pasifleştirme, rol atama, listeleme (tümü/onay bekleyenler/tekil)
+- **Group:** oluşturma/listeleme/tekil görüntüleme/isim güncelleme/silme(soft)/restore, Admin tüm grupları görebilir
+- **GroupMember:** üye ekleme/listeleme (mentor ve üyeler görür)/çıkarma(soft)
+- **Task:** oluşturma/durum güncelleme/listeleme/tekil görüntüleme/silme(soft)/restore/performans özeti, Admin tüm görevleri görebilir
+- **InternshipNote:** ekleme/listeleme/tekil görüntüleme/güncelleme/silme(soft)/restore
 
-**Test:** `Backend.Tests` içinde 31 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
+**Test:** `Backend.Tests` içinde 92 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
 
-**Henüz yapılmadı (bilerek sonraya bırakılan):** Angular frontend, Docker Compose (Backend+SQL+RabbitMQ birlikte), RabbitMQ (register sonrası email bildirimi), Azure'a canlıya alma.
+**Henüz yapılmadı (bilerek sonraya bırakılan):** Angular frontend, kalıcı entegrasyon test projesi (`WebApplicationFactory` + ayrı test veritabanı), Docker Compose (Backend+SQL+RabbitMQ birlikte), RabbitMQ (register sonrası email bildirimi), Azure'a canlıya alma.
 
 ## 11. Sıradaki Adım (bir sonraki oturum)
 
-1. `Backend.csproj`'daki gereksiz `Microsoft.Extensions.Identity.Core` paket referansını kaldır (küçük temizlik, hâlâ yapılmadı).
-2. Angular frontend'e başlangıç: proje iskeleti, routing, auth service, interceptor (JWT'yi her isteğe otomatik ekleyen), guard.
-3. Frontend geliştirilirken paralel olarak: RabbitMQ (register sonrası email bildirimi, küçük ilk kullanım).
-4. Daha sonra: Docker Compose ile Backend+SQL+RabbitMQ'yu tek komutla ayağa kaldırma, Azure'a canlıya alma.
+1. Uçtan uca testleri kalıcı bir entegrasyon test projesine taşı (`WebApplicationFactory` + ayrı test veritabanı); şimdilik 36 uç nokta ayrı bir geçici veritabanında script ile doğrulandı, repo'da yok.
+2. (Tartışmalı bir davranış) Admin tüm grupları görebiliyor ama bir grubun üyelerini listeleyemiyor (403); üye listesi kuralı "mentor veya üye". İstenirse Admin'e de izin verilir.
+3. Angular frontend'e başlangıç: proje iskeleti, routing, auth service, interceptor (JWT'yi her isteğe otomatik ekleyen), guard.
+4. Frontend geliştirilirken paralel olarak: RabbitMQ (register sonrası email bildirimi, küçük ilk kullanım).
+5. Daha sonra: Docker Compose ile Backend+SQL+RabbitMQ'yu tek komutla ayağa kaldırma, Azure'a canlıya alma.

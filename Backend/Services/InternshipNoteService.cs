@@ -31,10 +31,11 @@ public class InternshipNoteService : IInternshipNoteService
         return MapToDto(note);
     }
 
-    public async Task<List<InternshipNoteDto>> GetMyNotesAsync(int userId)
+    public async Task<PagedResultDto<InternshipNoteDto>> GetMyNotesAsync(int userId, int page, int pageSize)
     {
-        var notes = await _noteRepository.GetByUserIdAsync(userId);
-        return notes.Select(MapToDto).ToList();
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (notes, totalCount) = await _noteRepository.GetPagedByUserIdAsync(userId, page, pageSize);
+        return PagedResultDto<InternshipNoteDto>.Create(notes.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
     public async Task<InternshipNoteDto> GetNoteByIdAsync(int userId, int noteId)

@@ -39,10 +39,10 @@ public class TaskController : ControllerBase
     }
 
     [HttpGet("mine")]
-    public async Task<IActionResult> GetMyTasks()
+    public async Task<IActionResult> GetMyTasks(int page = 1, int pageSize = Pagination.DefaultPageSize)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var result = await _taskService.GetMyTasksAsync(userId);
+        var result = await _taskService.GetMyTasksAsync(userId, page, pageSize);
         return Ok(result);
     }
 

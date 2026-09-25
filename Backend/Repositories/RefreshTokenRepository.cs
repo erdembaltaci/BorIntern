@@ -23,6 +23,11 @@ public class RefreshTokenRepository : IRefreshTokenRepository
         await _context.RefreshTokens.AddAsync(refreshToken);
     }
 
+    public async Task<int> DeleteExpiredAsync(DateTime utcNow)
+    {
+        return await _context.RefreshTokens.Where(rt => rt.ExpiresAt < utcNow).ExecuteDeleteAsync();
+    }
+
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();

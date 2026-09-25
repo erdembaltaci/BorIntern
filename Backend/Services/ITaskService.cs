@@ -6,7 +6,7 @@ public interface ITaskService
 {
     Task<TaskDto> CreateTaskAsync(int mentorId, CreateTaskRequestDto request);
     Task<TaskDto> UpdateTaskStatusAsync(int userId, int taskId, UpdateTaskStatusRequestDto request);
-    Task<List<TaskDto>> GetMyTasksAsync(int userId);
+    Task<PagedResultDto<TaskDto>> GetMyTasksAsync(int userId, int page, int pageSize);
 
     // Tekil görev görüntüleme: sadece görevin sahibi (atanan stajyer) ya da onu oluşturan mentor.
     Task<TaskDto> GetTaskByIdAsync(int callerId, int taskId);
@@ -19,5 +19,5 @@ public interface ITaskService
     Task<TaskSummaryDto> GetPerformanceSummaryAsync(int mentorId, int userId);
 
     // Admin, tüm görevleri (hangi mentor/stajyer olursa olsun) görebilir.
-    Task<List<TaskDto>> GetAllTasksAsync();
+    Task<PagedResultDto<TaskDto>> GetAllTasksAsync(int page, int pageSize);
 }

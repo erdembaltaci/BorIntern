@@ -49,7 +49,7 @@ public class GroupMemberServiceTests
     }
 
     [Fact]
-    public async Task AddMemberAsync_ZatenUyeyse_InvalidOperationExceptionFirlatir()
+    public async Task AddMemberAsync_ZatenUyeyse_ConflictExceptionFirlatir()
     {
         var group = new Group { Id = 1, Name = "Test Grubu", MentorId = 1 };
 
@@ -63,7 +63,7 @@ public class GroupMemberServiceTests
 
         var request = new AddGroupMemberRequestDto { UserId = 5 };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ConflictException>(
             () => service.AddMemberAsync(mentorId: 1, groupId: 1, request));
     }
 
@@ -82,7 +82,7 @@ public class GroupMemberServiceTests
 
         // callerId=7, ne grubun mentoru (99) ne de üyesi -> Forbidden beklenir.
         await Assert.ThrowsAsync<ForbiddenException>(
-            () => service.GetGroupMembersAsync(callerId: 7, groupId: 1));
+            () => service.GetGroupMembersAsync(callerId: 7, groupId: 1, page: 1, pageSize: 20));
     }
 
     [Fact]
@@ -96,16 +96,16 @@ public class GroupMemberServiceTests
         var mockGroupMemberRepository = new Mock<IGroupMemberRepository>();
         // callerId=7, mentor değil ama grubun bir üyesi -> yine de görebilmeli.
         mockGroupMemberRepository.Setup(r => r.IsUserInGroupAsync(1, 7)).ReturnsAsync(true);
-        mockGroupMemberRepository.Setup(r => r.GetByGroupIdAsync(1)).ReturnsAsync(new List<GroupMember>
+        mockGroupMemberRepository.Setup(r => r.GetPagedByGroupIdAsync(1, 1, 20)).ReturnsAsync((new List<GroupMember>
         {
             new() { Id = 1, GroupId = 1, UserId = 7 }
-        });
+        }, 1));
 
         var service = new GroupMemberService(mockGroupRepository.Object, mockGroupMemberRepository.Object);
 
-        var result = await service.GetGroupMembersAsync(callerId: 7, groupId: 1);
+        var result = await service.GetGroupMembersAsync(callerId: 7, groupId: 1, page: 1, pageSize: 20);
 
-        Assert.Single(result);
+        Assert.Single(result.Items);
     }
 
     [Fact]

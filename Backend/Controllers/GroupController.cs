@@ -34,10 +34,10 @@ public class GroupController : ControllerBase
     // Mentor, kendi gruplarını listeler.
     [Authorize(Roles = "Mentor")]
     [HttpGet("mine")]
-    public async Task<IActionResult> GetMyGroups()
+    public async Task<IActionResult> GetMyGroups(int page = 1, int pageSize = Pagination.DefaultPageSize)
     {
         var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var result = await _groupService.GetMyGroupsAsync(mentorId);
+        var result = await _groupService.GetMyGroupsAsync(mentorId, page, pageSize);
         return Ok(result);
     }
 
@@ -65,10 +65,10 @@ public class GroupController : ControllerBase
     // kimin görüp göremeyeceği kontrolü GroupMemberService içinde yapılıyor.
     [Authorize]
     [HttpGet("{groupId}/members")]
-    public async Task<IActionResult> GetMembers(int groupId)
+    public async Task<IActionResult> GetMembers(int groupId, int page = 1, int pageSize = Pagination.DefaultPageSize)
     {
         var callerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var result = await _groupMemberService.GetGroupMembersAsync(callerId, groupId);
+        var result = await _groupMemberService.GetGroupMembersAsync(callerId, groupId, page, pageSize);
         return Ok(result);
     }
 

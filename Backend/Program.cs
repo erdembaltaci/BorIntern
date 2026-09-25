@@ -3,6 +3,7 @@ using Backend.Data;
 using Backend.Services;
 using Backend.Repositories;
 using Backend.Middleware;
+using Backend.BackgroundServices;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -31,6 +32,8 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IGroupMemberService, GroupMemberService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IInternshipNoteService, InternshipNoteService>();
+// Arka planda çalışır: süresi dolmuş refresh token'ları periyodik olarak siler.
+builder.Services.AddHostedService<RefreshTokenCleanupService>();
 // CORS: Angular frontend farklı bir adresten (localhost:4200) istek atacağı için,
 // tarayıcı bu izni görmeden isteği reddeder. appsettings'te olmayan bir origin denenirse
 // istek yine reddedilir - bu, sadece "izin verdiğimiz" adreslerin bize erişebilmesi demek.
@@ -120,6 +123,7 @@ app.UseCors("AllowFrontend");
 // Zincirin en başında: sonrasındaki HER middleware'de (auth, controller'lar) oluşan hatayı yakalar.
 // Artık controller'larda try/catch YOK - Service'ler hata fırlatır, burası merkezi olarak yakalayıp
 // doğru HTTP koduna (404/401/403/400/500) çevirir.
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Sıra önemli: önce "sen kimsin" (Authentication), sonra "ne yapabilirsin" (Authorization).

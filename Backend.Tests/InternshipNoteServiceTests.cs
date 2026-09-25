@@ -199,4 +199,23 @@ public class InternshipNoteServiceTests
         Assert.Null(note.DeletedAt);
         Assert.Equal(1, result.Id);
     }
+
+    [Fact]
+    public async Task GetMyNotesAsync_SayfaBilgisiVeToplamKayitSayisiDoner()
+    {
+        var mockRepo = new Mock<IInternshipNoteRepository>();
+        mockRepo.Setup(r => r.GetPagedByUserIdAsync(7, 1, 20)).ReturnsAsync((new List<InternshipNote>
+        {
+            new() { Id = 1, Content = "Not 1", UserId = 7 },
+            new() { Id = 2, Content = "Not 2", UserId = 7 }
+        }, 45));
+
+        var service = new InternshipNoteService(mockRepo.Object);
+
+        var result = await service.GetMyNotesAsync(userId: 7, page: 1, pageSize: 20);
+
+        Assert.Equal(2, result.Items.Count);
+        Assert.Equal(45, result.TotalCount);
+        Assert.Equal(3, result.TotalPages);
+    }
 }
