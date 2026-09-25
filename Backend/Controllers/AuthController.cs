@@ -22,6 +22,7 @@ public class AuthController : ControllerBase
 
     // Kayıt: her zaman Intern + Pending olarak oluşturur, token vermez
     // (Pending kullanıcı, Register üzerinden token alıp korumalı endpoint'lere giremesin diye).
+    [EnableRateLimiting("RegisterPolicy")]
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequestDto request)
     {
@@ -40,6 +41,7 @@ public class AuthController : ControllerBase
     }
 
     // Access token süresi dolunca, parola girmeden yeni bir access+refresh token çifti almak için.
+    [EnableRateLimiting("RefreshPolicy")]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(RefreshTokenRequestDto request)
     {

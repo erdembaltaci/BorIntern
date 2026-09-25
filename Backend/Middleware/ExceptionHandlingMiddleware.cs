@@ -37,6 +37,10 @@ public class ExceptionHandlingMiddleware
         {
             await WriteResponseAsync(context, StatusCodes.Status409Conflict, ex.Message);
         }
+        catch (TooManyRequestsException ex)
+        {
+            await WriteResponseAsync(context, StatusCodes.Status429TooManyRequests, ex.Message);
+        }
         catch (InvalidOperationException ex)
         {
             // Diğer tüm "beklenen" iş kuralı hataları (örn. "email zaten kayıtlı") -> 400.

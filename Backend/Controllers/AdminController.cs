@@ -38,7 +38,7 @@ public class AdminController : ControllerBase
     }
 
     // Register herkesi Intern oluşturur; Mentor/Admin ancak buradan atanır.
-    // Rol JWT'nin içinde taşındığı için, yeni rol kullanıcı yeniden login olunca geçerli olur.
+    // Rol her istekte veritabanından okunduğu için (CurrentUserTokenValidator), yeni rol hemen geçerli olur.
     [HttpPut("users/{userId}/role")]
     public async Task<IActionResult> ChangeUserRole(int userId, UpdateUserRoleRequestDto request)
     {

@@ -16,16 +16,19 @@ public class AuthService : IAuthService
     private readonly IUserRepository _userRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IConfiguration _configuration;
+    private readonly ILoginAttemptTracker _loginAttemptTracker;
     private readonly PasswordHasher<User> _passwordHasher = new();
 
     public AuthService(
         IUserRepository userRepository,
         IRefreshTokenRepository refreshTokenRepository,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILoginAttemptTracker loginAttemptTracker)
     {
         _userRepository = userRepository;
         _refreshTokenRepository = refreshTokenRepository;
         _configuration = configuration;
+        _loginAttemptTracker = loginAttemptTracker;
     }
 
     // Yeni kullanıcı her zaman Intern + Pending olarak oluşur - Role/Status kullanıcı isteğinden
@@ -65,15 +68,23 @@ public class AuthService : IAuthService
     // Sırayla: kullanıcı var mı -> parola doğru mu -> Active mi. Üçü de geçerse JWT + refresh token üretilir.
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request)
     {
+        // Hesap bazlı kilit: art arda hatalı denemeden sonra doğru şifre girilse bile bir süre giriş reddedilir.
+        if (_loginAttemptTracker.IsLockedOut(request.Email))
+        {
+            throw new TooManyRequestsException("Çok fazla hatalı giriş denemesi. Lütfen daha sonra tekrar deneyin.");
+        }
+
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
+            _loginAttemptTracker.RecordFailure(request.Email);
             throw new UnauthorizedException("Kullanıcı bulunamadı.");
         }
 
         var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
         if (verificationResult != PasswordVerificationResult.Success)
         {
+            _loginAttemptTracker.RecordFailure(request.Email);
             throw new UnauthorizedException("Geçersiz şifre.");
         }
 
@@ -82,6 +93,7 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Kullanıcı aktif değil.");
         }
 
+        _loginAttemptTracker.Reset(request.Email);
         return await BuildAuthResponseAsync(user);
     }
 
@@ -89,7 +101,7 @@ public class AuthService : IAuthService
     // gönderir; biz de geçerliyse yeni bir access+refresh token çifti üretiriz.
     public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
     {
-        var storedToken = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+        var storedToken = await _refreshTokenRepository.GetByTokenAsync(TokenHasher.Hash(request.RefreshToken));
         if (storedToken == null || storedToken.IsRevoked || storedToken.ExpiresAt < DateTime.UtcNow)
         {
             throw new UnauthorizedException("Geçersiz veya süresi dolmuş refresh token.");
@@ -114,7 +126,7 @@ public class AuthService : IAuthService
     // kadar teknik olarak hâlâ geçerlidir - bu, JWT sistemlerinde kabul edilen bir sınırlamadır.
     public async Task LogoutAsync(RefreshTokenRequestDto request)
     {
-        var storedToken = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+        var storedToken = await _refreshTokenRepository.GetByTokenAsync(TokenHasher.Hash(request.RefreshToken));
         if (storedToken == null)
         {
             throw new NotFoundException("Refresh token bulunamadı.");
@@ -128,9 +140,11 @@ public class AuthService : IAuthService
     // bilgisi) - bu yüzden tek bir yardımcı metoda topladık.
     private async Task<AuthResponseDto> BuildAuthResponseAsync(User user)
     {
+        // İstemciye ham token verilir, veritabanına sadece özeti (hash) yazılır.
+        string rawRefreshToken = GenerateRefreshToken();
         var refreshToken = new RefreshToken
         {
-            Token = GenerateRefreshToken(),
+            Token = TokenHasher.Hash(rawRefreshToken),
             UserId = user.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             IsRevoked = false
@@ -142,7 +156,7 @@ public class AuthService : IAuthService
         return new AuthResponseDto
         {
             Token = GenerateJwtToken(user),
-            RefreshToken = refreshToken.Token,
+            RefreshToken = rawRefreshToken,
             User = new UserDto
             {
                 Id = user.Id,

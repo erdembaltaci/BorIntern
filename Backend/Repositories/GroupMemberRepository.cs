@@ -43,6 +43,6 @@ public class GroupMemberRepository : IGroupMemberRepository
 
     public async Task SaveChangesAsync()
     {
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesTranslatingConflictsAsync();
     }
 }

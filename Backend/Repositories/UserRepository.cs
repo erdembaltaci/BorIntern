@@ -47,6 +47,6 @@ public class UserRepository : IUserRepository
 
     public async Task SaveChangesAsync()
     {
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesTranslatingConflictsAsync();
     }
 }

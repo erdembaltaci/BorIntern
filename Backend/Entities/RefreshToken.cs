@@ -6,6 +6,7 @@ namespace Backend.Entities;
 // iptali" ihtiyacımızı karşılıyor.
 public class RefreshToken : BaseEntity
 {
+    // Ham token değil, SHA-256 özeti (bkz. TokenHasher); istemcideki ham değer veritabanında hiç bulunmaz.
     public string Token { get; set; } = string.Empty;
     public int UserId { get; set; }
     public DateTime ExpiresAt { get; set; }

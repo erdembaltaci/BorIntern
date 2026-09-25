@@ -325,7 +325,9 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 
 **Mimari:** Tam N-katmanlı yapı — `Controller → Service → Repository → AppDbContext`. `BaseEntity`/`SoftDeletableEntity` ile ortak alanlar tekilleştirildi. Özel exception tipleri (`NotFoundException`/`UnauthorizedException`/`ForbiddenException`/`ConflictException`) + `ExceptionHandlingMiddleware` ile controller'larda `try/catch` yok, hatalar merkezi olarak doğru HTTP koduna çevriliyor. `RequestLoggingMiddleware` her isteğin giriş/çıkışını ve HTTP kodunu loglar.
 
-**Auth & Güvenlik:** Register/Login/Refresh/Logout, JWT (1 saat) + refresh token (7 gün, tek kullanımlık/rotation), rol bazlı yetkilendirme (`[Authorize(Roles=...)]`), sahiplik kontrolleri (mentor/stajyer kendi kaydına erişir), `/api/auth/login` için rate limiting (IP başına dakikada 5 deneme), tüm request DTO'larında DataAnnotations validasyonu, CORS (`localhost:4200` için hazır), çakışmalarda (aynı e-posta/grup adı/üyelik) 409 Conflict, süresi dolan refresh token'ların arka plan servisiyle (`RefreshTokenCleanupService`, açılışta ve 6 saatte bir) silinmesi.
+**Auth & Güvenlik:** Register/Login/Refresh/Logout, JWT (1 saat) + refresh token (7 gün, tek kullanımlık/rotation; veritabanında ham hali değil SHA-256 özeti saklanır), rol bazlı yetkilendirme (`[Authorize(Roles=...)]`), sahiplik kontrolleri (mentor/stajyer kendi kaydına erişir), rate limiting (IP başına dakikada: login 5, kayıt 10, refresh 20), hesap bazlı geçici kilit (aynı e-postaya 5 hatalı denemede 15 dakika), parola politikası (en az 8 karakter; büyük harf, küçük harf ve rakam), tüm request DTO'larında DataAnnotations validasyonu, CORS (`localhost:4200` için hazır), çakışmalarda (aynı e-posta/grup adı/üyelik) 409 Conflict, süresi dolan refresh token'ların arka plan servisiyle (`RefreshTokenCleanupService`, açılışta ve 6 saatte bir) silinmesi. Kimliği doğrulanan her istekte kullanıcının durumu ve rolü veritabanından tekrar okunur (`CurrentUserTokenValidator`): pasifleştirilen kullanıcının token'ı ve rolü değişen kullanıcının eski yetkisi hemen geçersiz olur. Aynı anda gelen çift kayıt veritabanı unique index'iyle yakalanıp 409 döner. Ters proxy arkasında gerçek istemci IP'si için `ForwardedHeaders__Enabled=true` (varsayılan kapalı; açarken güvenilir proxy adresleri tanımlanmalı).
+
+**Bilinen sınırlamalar:** Logout access token'ı anında öldürmez (en fazla 1 saat geçerli kalır; pasifleştirilen kullanıcı hariç). Hesap kilidi sayaçları bellekte tutulur, tek sunuculu çalışma için uygundur ve uygulama yeniden başlayınca sıfırlanır. Her kimlikli istek bir kullanıcı sorgusu daha yapar.
 
 **Sayfalama:** Tüm liste uç noktaları `?page=1&pageSize=20` alır (varsayılan 20, en fazla 100; geçersiz değerler varsayılana çekilir). Cevap biçimi: `{ items, page, pageSize, totalCount, totalPages }`.
 
@@ -336,7 +338,7 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 - **Task:** oluşturma/durum güncelleme/listeleme/tekil görüntüleme/silme(soft)/restore/performans özeti, Admin tüm görevleri görebilir
 - **InternshipNote:** ekleme/listeleme/tekil görüntüleme/güncelleme/silme(soft)/restore
 
-**Test:** `Backend.Tests` içinde 92 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
+**Test:** `Backend.Tests` içinde 112 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
 
 **Henüz yapılmadı (bilerek sonraya bırakılan):** Angular frontend, kalıcı entegrasyon test projesi (`WebApplicationFactory` + ayrı test veritabanı), Docker Compose (Backend+SQL+RabbitMQ birlikte), RabbitMQ (register sonrası email bildirimi), Azure'a canlıya alma.
 

@@ -4,6 +4,8 @@ using Backend.Services;
 using Backend.Repositories;
 using Backend.Middleware;
 using Backend.BackgroundServices;
+using Backend.Authentication;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -34,6 +36,9 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IInternshipNoteService, InternshipNoteService>();
 // Arka planda çalışır: süresi dolmuş refresh token'ları periyodik olarak siler.
 builder.Services.AddHostedService<RefreshTokenCleanupService>();
+// Hesap bazlı giriş kilidi sayaçları bellekte tutulur, bu yüzden tüm istekler için TEK örnek (Singleton) gerekir.
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ILoginAttemptTracker, LoginAttemptTracker>();
 // CORS: Angular frontend farklı bir adresten (localhost:4200) istek atacağı için,
 // tarayıcı bu izni görmeden isteği reddeder. appsettings'te olmayan bir origin denenirse
 // istek yine reddedilir - bu, sadece "izin verdiğimiz" adreslerin bize erişebilmesi demek.
@@ -87,24 +92,46 @@ builder.Services.AddAuthentication(options =>
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
+
+        // İmza/süre geçerli olsa bile kullanıcı pasifleştirilmiş ya da rolü değişmiş olabilir: her istekte güncel hali okunur.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = CurrentUserTokenValidator.ValidateAsync
+        };
     });
 
-// Rate limiting: brute-force parola denemelerine karşı. "LoginPolicy" politikası,
-// aynı IP'den 1 dakikada en fazla 5 login denemesine izin verir, fazlası 429 (Too Many Requests) alır.
+// Rate limiting: aynı IP'den 1 dakikada en fazla N istek, fazlası 429 (Too Many Requests) alır.
+// "LoginPolicy" (5): parola denemeleri. "RegisterPolicy" (10): kayıt spam'i. "RefreshPolicy" (20): refresh token
+// denemeleri; istemciler düzenli yenilediği için daha yüksek. Politikaların sayaçları birbirinden ayrıdır.
+static RateLimitPartition<string> FixedWindowByIp(HttpContext httpContext, int permitLimit) =>
+    RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        });
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-    options.AddPolicy("LoginPolicy", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+    options.AddPolicy("LoginPolicy", httpContext => FixedWindowByIp(httpContext, permitLimit: 5));
+    options.AddPolicy("RegisterPolicy", httpContext => FixedWindowByIp(httpContext, permitLimit: 10));
+    options.AddPolicy("RefreshPolicy", httpContext => FixedWindowByIp(httpContext, permitLimit: 20));
 });
+
+// Ters proxy (nginx, Azure vb.) arkasında gerçek istemci IP'sini X-Forwarded-For'dan okumak için. Rate limit IP'ye
+// göre çalıştığı için bu olmadan herkes proxy'nin IP'si gibi görünür. Varsayılan KAPALI: güvenilir proxy adresleri
+// (KnownProxies) tanımlanmadan açmak IP sahteciliğine yol açar. Açmak için: ForwardedHeaders__Enabled=true
+bool useForwardedHeaders = builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled");
+if (useForwardedHeaders)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    });
+}
 
 var app = builder.Build();
 
@@ -113,6 +140,11 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+if (useForwardedHeaders)
+{
+    app.UseForwardedHeaders();
 }
 
 app.UseHttpsRedirection();
