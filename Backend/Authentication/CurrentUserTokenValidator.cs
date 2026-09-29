@@ -27,7 +27,8 @@ public static class CurrentUserTokenValidator
             return;
         }
 
-        // Token'daki rol eskimiş olabilir: güncel rolü veritabanından alıp claim'i değiştiriyoruz.
+        // JWT rol taşımıyor (bilerek): rol claim'i her istekte burada, veritabanından taze eklenir.
+        // FindAll/RemoveClaim, token'da eski bir rol kalmışsa (ör. geçiş dönemi) onu da temizler.
         var identity = (ClaimsIdentity)context.Principal!.Identity!;
         foreach (var roleClaim in identity.FindAll(ClaimTypes.Role).ToList())
         {

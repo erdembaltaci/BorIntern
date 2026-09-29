@@ -169,13 +169,15 @@ public class AuthService : IAuthService
         };
     }
 
+    // Bilerek rol/yetki YOK burada - JWT sadece kimliği taşır. Yetki, her istekte
+    // CurrentUserTokenValidator tarafından veritabanından taze okunur; token'a gömülseydi,
+    // rolü değişen/pasifleştirilen bir kullanıcı süresi dolana kadar eski yetkiyi taşırdı.
     private string GenerateJwtToken(User user)
     {
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role.ToString())
+            new Claim(ClaimTypes.Email, user.Email)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));

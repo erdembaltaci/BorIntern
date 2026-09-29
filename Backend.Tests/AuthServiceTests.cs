@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using Xunit;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace Backend.Tests;
 
@@ -81,6 +83,32 @@ public class AuthServiceTests
         Assert.False(string.IsNullOrEmpty(result.Token));
         Assert.False(string.IsNullOrEmpty(result.RefreshToken));
         Assert.Equal("Intern", result.User.Role);
+    }
+
+    [Fact]
+    public async Task LoginAsync_UretilenJwt_RolTasimazSadeceKimlikTasir()
+    {
+        var activeUser = new User
+        {
+            Id = 1, Email = "test@example.com", FullName = "Test Kullanici",
+            Role = UserRole.Admin, Status = UserStatus.Active
+        };
+        activeUser.PasswordHash = new PasswordHasher<User>().HashPassword(activeUser, "Sifre123!");
+
+        var mockUserRepository = new Mock<IUserRepository>();
+        mockUserRepository.Setup(r => r.GetByEmailAsync("test@example.com")).ReturnsAsync(activeUser);
+
+        var authService = new AuthService(
+            mockUserRepository.Object, new Mock<IRefreshTokenRepository>().Object,
+            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+
+        var result = await authService.LoginAsync(new LoginRequestDto { Email = "test@example.com", Password = "Sifre123!" });
+
+        // Yetki (rol) JWT'ye bilerek gömülmüyor - her istekte CurrentUserTokenValidator veritabanından taze okuyor.
+        // Kullanıcı Admin olsa bile, üretilen token'da rol claim'i HİÇ olmamalı.
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(result.Token);
+        Assert.DoesNotContain(jwt.Claims, c => c.Type == ClaimTypes.Role);
+        Assert.Contains(jwt.Claims, c => c.Type == ClaimTypes.NameIdentifier && c.Value == "1");
     }
 
     [Fact]
