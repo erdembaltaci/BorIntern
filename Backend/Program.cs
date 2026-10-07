@@ -29,6 +29,16 @@ builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<IInternshipNoteRepository, InternshipNoteRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
+builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+// E-posta: SMTP ayarı ("Smtp:Host") varsa gerçekten gönderir, yoksa içeriği loga yazar (geliştirme).
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Host"]))
+{
+    builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+}
+else
+{
+    builder.Services.AddScoped<IEmailSender, LogEmailSender>();
+}
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
@@ -103,7 +113,8 @@ builder.Services.AddAuthentication(options =>
     });
 
 // Rate limiting: aynı IP'den 1 dakikada en fazla N istek, fazlası 429 (Too Many Requests) alır.
-// "LoginPolicy" (5): parola denemeleri. "RegisterPolicy" (10): kayıt spam'i. "RefreshPolicy" (20): refresh token
+// "LoginPolicy" (5): parola denemeleri. "RegisterPolicy" (10): kayıt spam'i. "ForgotPolicy" (5): parola sıfırlama
+// istekleri (e-posta bombalama). "RefreshPolicy" (20): refresh token
 // denemeleri; istemciler düzenli yenilediği için daha yüksek. Politikaların sayaçları birbirinden ayrıdır.
 static RateLimitPartition<string> FixedWindowByIp(HttpContext httpContext, int permitLimit) =>
     RateLimitPartition.GetFixedWindowLimiter(
@@ -118,9 +129,12 @@ static RateLimitPartition<string> FixedWindowByIp(HttpContext httpContext, int p
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("LoginPolicy", httpContext => FixedWindowByIp(httpContext, permitLimit: 5));
-    options.AddPolicy("RegisterPolicy", httpContext => FixedWindowByIp(httpContext, permitLimit: 10));
-    options.AddPolicy("RefreshPolicy", httpContext => FixedWindowByIp(httpContext, permitLimit: 20));
+    // Sınırlar yapılandırmadan okunur (RateLimiting:Login vb.); verilmezse güvenli varsayılanlar geçerli.
+    // Otomatik testler, art arda yüzlerce giriş yapabilmek için bu değerleri yükseltir.
+    options.AddPolicy("LoginPolicy", httpContext => FixedWindowByIp(httpContext, builder.Configuration.GetValue("RateLimiting:Login", 5)));
+    options.AddPolicy("RegisterPolicy", httpContext => FixedWindowByIp(httpContext, builder.Configuration.GetValue("RateLimiting:Register", 10)));
+    options.AddPolicy("RefreshPolicy", httpContext => FixedWindowByIp(httpContext, builder.Configuration.GetValue("RateLimiting:Refresh", 20)));
+    options.AddPolicy("ForgotPolicy", httpContext => FixedWindowByIp(httpContext, builder.Configuration.GetValue("RateLimiting:Forgot", 5)));
 });
 
 // Ters proxy (nginx, Azure vb.) arkasında gerçek istemci IP'sini X-Forwarded-For'dan okumak için. Rate limit IP'ye

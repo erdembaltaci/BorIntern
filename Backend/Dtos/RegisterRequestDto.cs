@@ -15,8 +15,7 @@ public class RegisterRequestDto
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Parola zorunludur.")]
-    [MinLength(8, ErrorMessage = "Parola en az 8 karakter olmalı.")]
-    [RegularExpression(@"^(?=.*\p{Ll})(?=.*\p{Lu})(?=.*\d).+$",
-        ErrorMessage = "Parola en az bir büyük harf, bir küçük harf ve bir rakam içermeli.")]
+    [MinLength(PasswordRules.MinLength, ErrorMessage = PasswordRules.MinLengthMessage)]
+    [RegularExpression(PasswordRules.Pattern, ErrorMessage = PasswordRules.PatternMessage)]
     public string Password { get; set; } = string.Empty;
 }

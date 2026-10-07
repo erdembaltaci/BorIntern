@@ -47,7 +47,7 @@ public class AuthServiceTests
         var authService = new AuthService(
             mockUserRepository.Object,
             new Mock<IRefreshTokenRepository>().Object,
-            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var request = new LoginRequestDto { Email = "test@example.com", Password = "Sifre123!" };
 
@@ -74,7 +74,7 @@ public class AuthServiceTests
         var authService = new AuthService(
             mockUserRepository.Object,
             new Mock<IRefreshTokenRepository>().Object,
-            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var request = new LoginRequestDto { Email = "test@example.com", Password = "Sifre123!" };
 
@@ -100,7 +100,7 @@ public class AuthServiceTests
 
         var authService = new AuthService(
             mockUserRepository.Object, new Mock<IRefreshTokenRepository>().Object,
-            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var result = await authService.LoginAsync(new LoginRequestDto { Email = "test@example.com", Password = "Sifre123!" });
 
@@ -120,7 +120,7 @@ public class AuthServiceTests
         var authService = new AuthService(
             mockUserRepository.Object,
             new Mock<IRefreshTokenRepository>().Object,
-            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var request = new RegisterRequestDto
         {
@@ -139,7 +139,7 @@ public class AuthServiceTests
         mockRefreshRepo.Setup(r => r.GetByTokenAsync(It.IsAny<string>())).ReturnsAsync((RefreshToken?)null);
 
         var authService = new AuthService(
-            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var request = new RefreshTokenRequestDto { RefreshToken = "olmayan-token" };
 
@@ -161,7 +161,7 @@ public class AuthServiceTests
         mockRefreshRepo.Setup(r => r.GetByTokenAsync(TokenHasher.Hash("eski-token"))).ReturnsAsync(revokedToken);
 
         var authService = new AuthService(
-            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var request = new RefreshTokenRequestDto { RefreshToken = "eski-token" };
 
@@ -183,7 +183,7 @@ public class AuthServiceTests
         mockRefreshRepo.Setup(r => r.GetByTokenAsync(TokenHasher.Hash("eski-token"))).ReturnsAsync(expiredToken);
 
         var authService = new AuthService(
-            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var request = new RefreshTokenRequestDto { RefreshToken = "eski-token" };
 
@@ -208,7 +208,7 @@ public class AuthServiceTests
         var mockUserRepo = new Mock<IUserRepository>();
         mockUserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(activeUser);
 
-        var authService = new AuthService(mockUserRepo.Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+        var authService = new AuthService(mockUserRepo.Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var request = new RefreshTokenRequestDto { RefreshToken = "gecerli-token" };
         var result = await authService.RefreshTokenAsync(request);
@@ -226,7 +226,7 @@ public class AuthServiceTests
         mockRefreshRepo.Setup(r => r.GetByTokenAsync(It.IsAny<string>())).ReturnsAsync((RefreshToken?)null);
 
         var authService = new AuthService(
-            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var request = new RefreshTokenRequestDto { RefreshToken = "olmayan-token" };
 
@@ -242,7 +242,7 @@ public class AuthServiceTests
         mockRefreshRepo.Setup(r => r.GetByTokenAsync(TokenHasher.Hash("gecerli-token"))).ReturnsAsync(token);
 
         var authService = new AuthService(
-            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            new Mock<IUserRepository>().Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         await authService.LogoutAsync(new RefreshTokenRequestDto { RefreshToken = "gecerli-token" });
 
@@ -268,7 +268,7 @@ public class AuthServiceTests
         mockTracker.Setup(t => t.IsLockedOut("test@example.com")).Returns(true);
 
         var authService = new AuthService(
-            mockUserRepo.Object, new Mock<IRefreshTokenRepository>().Object, CreateFakeJwtConfig().Object, mockTracker.Object);
+            mockUserRepo.Object, new Mock<IRefreshTokenRepository>().Object, CreateFakeJwtConfig().Object, mockTracker.Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         // Doğru şifre girilse bile kilitli hesap reddedilmeli.
         var request = new LoginRequestDto { Email = "test@example.com", Password = "Sifre123!" };
@@ -285,7 +285,7 @@ public class AuthServiceTests
         var mockTracker = new Mock<ILoginAttemptTracker>();
 
         var authService = new AuthService(
-            mockUserRepo.Object, new Mock<IRefreshTokenRepository>().Object, CreateFakeJwtConfig().Object, mockTracker.Object);
+            mockUserRepo.Object, new Mock<IRefreshTokenRepository>().Object, CreateFakeJwtConfig().Object, mockTracker.Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         await Assert.ThrowsAsync<UnauthorizedException>(() => authService.LoginAsync(
             new LoginRequestDto { Email = "test@example.com", Password = "YanlisSifre1" }));
@@ -302,7 +302,7 @@ public class AuthServiceTests
         var mockTracker = new Mock<ILoginAttemptTracker>();
 
         var authService = new AuthService(
-            mockUserRepo.Object, new Mock<IRefreshTokenRepository>().Object, CreateFakeJwtConfig().Object, mockTracker.Object);
+            mockUserRepo.Object, new Mock<IRefreshTokenRepository>().Object, CreateFakeJwtConfig().Object, mockTracker.Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         await Assert.ThrowsAsync<UnauthorizedException>(() => authService.LoginAsync(
             new LoginRequestDto { Email = "yok@example.com", Password = "Sifre123!" }));
@@ -319,7 +319,7 @@ public class AuthServiceTests
         var mockTracker = new Mock<ILoginAttemptTracker>();
 
         var authService = new AuthService(
-            mockUserRepo.Object, new Mock<IRefreshTokenRepository>().Object, CreateFakeJwtConfig().Object, mockTracker.Object);
+            mockUserRepo.Object, new Mock<IRefreshTokenRepository>().Object, CreateFakeJwtConfig().Object, mockTracker.Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         await authService.LoginAsync(new LoginRequestDto { Email = "test@example.com", Password = "Sifre123!" });
 
@@ -340,7 +340,7 @@ public class AuthServiceTests
             .Returns(Task.CompletedTask);
 
         var authService = new AuthService(
-            mockUserRepo.Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object);
+            mockUserRepo.Object, mockRefreshRepo.Object, CreateFakeJwtConfig().Object, new Mock<ILoginAttemptTracker>().Object, new Mock<IPasswordResetTokenRepository>().Object, new Mock<IEmailSender>().Object);
 
         var result = await authService.LoginAsync(new LoginRequestDto { Email = "test@example.com", Password = "Sifre123!" });
 

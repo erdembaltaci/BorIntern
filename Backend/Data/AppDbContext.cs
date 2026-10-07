@@ -25,6 +25,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Announcement> Announcements { get; set; }
 
+    public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -140,6 +142,14 @@ public class AppDbContext : DbContext
             note.HasOne<User>().WithMany().HasForeignKey(n => n.ReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
             // Mentor inceleme kuyruğu ve stajyer listesi durum ile filtrelendiği için.
             note.HasIndex(n => new { n.UserId, n.Status });
+        });
+
+        // Parola sıfırlama anahtarları: sadece SHA-256 özeti (44 karakter base64) saklanır, aranabilsin diye benzersiz indeks.
+        modelBuilder.Entity<PasswordResetToken>(token =>
+        {
+            token.Property(t => t.TokenHash).HasMaxLength(64);
+            token.HasIndex(t => t.TokenHash).IsUnique();
+            token.HasOne<User>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // Aynı token string'i iki kere üretilmesin diye (pratikte imkansıza yakın ama garanti olsun).

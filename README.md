@@ -36,9 +36,24 @@ dotnet test ../Backend.Tests   # unit testler
 UPDATE Users SET Role = 2, Status = 1 WHERE Email = 'ornek@mail.com';
 ```
 
+**5. E-posta (parola sıfırlama).** `Smtp:Host` tanımlı DEĞİLSE e-posta gerçekten gönderilmez; içeriği (sıfırlama bağlantısı dahil) backend konsoluna/loguna yazılır. Gerçek gönderim için User Secrets ya da ortam değişkeni kullan (parola koda/appsettings'e yazılmaz):
+
+```bash
+dotnet user-secrets set "Smtp:Host" "smtp.ornek.com"
+dotnet user-secrets set "Smtp:Port" "587"
+dotnet user-secrets set "Smtp:User" "kullanici@ornek.com"
+dotnet user-secrets set "Smtp:Password" "<SIFRE>"
+dotnet user-secrets set "Smtp:From" "Pusula <no-reply@ornek.com>"
+dotnet user-secrets set "App:FrontendUrl" "https://pusula.ornek.com"   # e-postadaki bağlantının adresi (varsayılan http://localhost:4200)
+```
+
+SMTP gönderimi (`SmtpEmailSender`) yazıldı ama gerçek bir SMTP sunucusuna karşı denenmedi. Hata verirse çağırana fırlatılmaz, sadece loglanır (adres kayıtlı mı sızmasın diye).
+
+**Hız sınırları** (IP başına dakikada) yapılandırılabilir: `RateLimiting:Login` (5), `RateLimiting:Register` (10), `RateLimiting:Refresh` (20), `RateLimiting:Forgot` (5). Otomatik testlerde yükseltmek için ortam değişkeni: `RateLimiting__Login=500`.
+
 **Veritabanını başka bir sunucuya taşımak** kod değişikliği gerektirmez: yeni sunucuda `dotnet ef database update` çalıştır (veri de gerekiyorsa `BACKUP`/`RESTORE`), sonra `ConnectionStrings:DefaultConnection` değerini yeni adresle güncelle. Production'da aynı anahtar ortam değişkeninden okunur: `ConnectionStrings__DefaultConnection`.
 
-## API Uç Noktaları (51)
+## API Uç Noktaları (54)
 
 Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri (`/groups/mine`, `/tasks/created`, `/admin/users`, `/admin/users/pending`, `/admin/groups`, `/admin/tasks`) ayrıca `?search=` ile sunucu tarafında aranır: kullanıcıda ad/e-posta, grupta grup adı (admin için mentor adı da), görevde başlık/açıklama/stajyer ve mentor adı. Yetki (rol) kontrolü `[Authorize]` ile, sahiplik kontrolü (kayıt sahibi/ilgili mentor olma şartı) serviste yapılır.
 
@@ -49,6 +64,9 @@ Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri
 | `POST /api/auth/login` | Herkes (IP başına dakikada 5) | Giriş: sadece Active kullanıcıya JWT + refresh token |
 | `POST /api/auth/refresh` | Herkes | Refresh token ile yeni token çifti (tek kullanımlık) |
 | `POST /api/auth/logout` | Herkes | Refresh token'ı iptal eder |
+| `POST /api/auth/change-password` | Giriş yapmış herkes (dakikada 5) | Parola değiştirir (mevcut parola doğrulanır); diğer cihazlardaki TÜM oturumlar kapanır, bu oturum yeni token çifti alır |
+| `POST /api/auth/forgot-password` | Herkes (dakikada 5) | Parola sıfırlama bağlantısı yollar; adres kayıtlı olsun olmasın aynı cevap (kullanıcı sızmaz) |
+| `POST /api/auth/reset-password` | Herkes (dakikada 5) | E-postadaki anahtarla yeni parola belirler (tek kullanımlık, 30 dk, tüm oturumlar kapanır) |
 | **Profil** | | |
 | `GET /api/users/me` | Giriş yapmış herkes | Kendi profilini görür |
 | `PUT /api/users/me` | Giriş yapmış herkes | Kendi adını günceller |
@@ -191,6 +209,10 @@ Id, FullName, Email, PasswordHash, Role, Status, CreatedAt
 
 - `Id`, `GroupId`, `MentorId`, `Title`, `Content`, `CreatedAt`
 - Soft delete: `IsDeleted`, `DeletedAt`
+
+### PasswordResetToken
+
+- `Id`, `UserId`, `TokenHash` (ham anahtar saklanmaz, SHA-256 özeti), `ExpiresAt` (30 dk), `UsedAt`, `CreatedAt`
 
 ### InternshipNote (staj defteri kaydı)
 
@@ -362,7 +384,7 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 - **Task:** oluşturma/durum güncelleme/listeleme/tekil görüntüleme/silme(soft)/restore/performans özeti, Admin tüm görevleri görebilir
 - **InternshipNote:** ekleme/listeleme/tekil görüntüleme/güncelleme/silme(soft)/restore
 
-**Test:** `Backend.Tests` içinde 210 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
+**Test:** `Backend.Tests` içinde 225 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
 
 **Frontend:** `Frontend/` klasöründe Angular arayüzü var (giriş/kayıt + "beni hatırla", rol bazlı panel, sürükle-bırak görev panosu, onay akışlı staj defteri + PDF çıktı, mentor defter onayları, gruplar, grup duyuruları, admin ekranları, her listede arama; açık/koyu tema, mobil uyumlu). Hiçbir liste "tüm kayıtları çekmez": her şey sunucudan 10'arlı sayfalarla gelir. Çalıştırma: backend `dotnet run`, sonra `cd Frontend && npm install && npm start` (http://localhost:4200). Backend adresi `Frontend/src/app/core/config.ts` içinde.
 

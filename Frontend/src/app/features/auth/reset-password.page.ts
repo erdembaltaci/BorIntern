@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/auth.service';
 import { errorMessage } from '../../core/error.util';
 import { PASSWORD_MIN_LENGTH, PASSWORD_PATTERN, passwordsMatch } from '../../core/form.util';
@@ -9,39 +9,41 @@ import { ThemeService } from '../../core/theme.service';
 import { Icon } from '../../shared/icon';
 import { PasswordRules } from '../../shared/password-rules';
 
+/**
+ * E-postadaki bağlantıdan (/sifre-sifirla?token=...) gelinen sayfa: yeni parolayı belirler.
+ * Anahtar adres çubuğundan `token` girdisi olarak gelir (withComponentInputBinding).
+ */
 @Component({
-  selector: 'app-register-page',
+  selector: 'app-reset-password-page',
   imports: [ReactiveFormsModule, RouterLink, Icon, PasswordRules],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './register.page.html',
+  templateUrl: './reset-password.page.html',
   styleUrl: './auth.css',
 })
-export class RegisterPage {
+export class ResetPasswordPage {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   protected readonly themeService = inject(ThemeService);
 
+  readonly token = input<string>();
+
   protected readonly form = this.fb.nonNullable.group(
     {
-      fullName: ['', [Validators.required, Validators.minLength(2)]],
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(PASSWORD_MIN_LENGTH), Validators.pattern(PASSWORD_PATTERN)]],
-      confirmPassword: ['', [Validators.required]],
+      newPassword: ['', [Validators.required, Validators.minLength(PASSWORD_MIN_LENGTH), Validators.pattern(PASSWORD_PATTERN)]],
+      confirmPassword: ['', Validators.required],
     },
-    { validators: passwordsMatch('password', 'confirmPassword') },
+    { validators: passwordsMatch('newPassword', 'confirmPassword') },
   );
+  protected readonly passwordValue = toSignal(this.form.controls.newPassword.valueChanges, { initialValue: '' });
 
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly showPassword = signal(false);
-  /** Kayıt başarılıysa formun yerine "onay bekleniyor" ekranı gösterilir. */
-  protected readonly registeredEmail = signal<string | null>(null);
-
-  // Parola metnini signal'e çevirip kural listesine veriyoruz (yazdıkça canlı işaretlenir).
-  protected readonly passwordValue = toSignal(this.form.controls.password.valueChanges, { initialValue: '' });
+  protected readonly done = signal(false);
 
   protected async submit(): Promise<void> {
-    if (this.form.invalid) {
+    const token = this.token();
+    if (!token || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -49,9 +51,8 @@ export class RegisterPage {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const { fullName, email, password } = this.form.getRawValue();
-      const user = await this.auth.register(fullName.trim(), email.trim(), password);
-      this.registeredEmail.set(user.email);
+      await this.auth.resetPassword(token, this.form.getRawValue().newPassword);
+      this.done.set(true);
     } catch (err) {
       this.error.set(errorMessage(err));
     } finally {

@@ -130,32 +130,18 @@
   display: none;
 }
 
-.rules {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.35rem 0.75rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-.rules li {
+.label-row {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
 }
-.rules li.ok {
-  color: var(--success);
-}
-.rules .tick {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  flex: none;
+.inline-link {
+  margin-left: 0.35rem;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  white-space: nowrap;
 }
 
 .success-box {
@@ -165,6 +151,10 @@
   gap: 0.75rem;
   text-align: center;
   padding: 1rem 0;
+}
+.success-icon.warn {
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 .success-icon {
   display: grid;
@@ -199,10 +189,5 @@
     border-radius: 11px;
     background: linear-gradient(135deg, var(--primary), #8b5cf6);
     color: #fff;
-  }
-}
-@media (max-width: 420px) {
-  .rules {
-    grid-template-columns: 1fr;
   }
 }

@@ -17,6 +17,19 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/register.page').then((m) => m.RegisterPage),
   },
 
+  {
+    path: 'sifre-unuttum',
+    canActivate: [guestGuard],
+    title: 'Şifremi unuttum · Pusula',
+    loadComponent: () => import('./features/auth/forgot-password.page').then((m) => m.ForgotPasswordPage),
+  },
+  {
+    path: 'sifre-sifirla',
+    canActivate: [guestGuard],
+    title: 'Parola sıfırla · Pusula',
+    loadComponent: () => import('./features/auth/reset-password.page').then((m) => m.ResetPasswordPage),
+  },
+
   // Giriş yapmış kullanıcıların sayfaları: hepsi yan menülü ortak düzenin (Shell) içinde açılır
   {
     path: '',

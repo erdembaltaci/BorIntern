@@ -98,14 +98,7 @@
                 <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" />
               </button>
             </div>
-            <ul class="rules">
-              @for (rule of rules(); track rule.label) {
-                <li [class.ok]="rule.ok">
-                  <span class="tick">@if (rule.ok) { <app-icon name="check" [size]="10" /> }</span>
-                  {{ rule.label }}
-                </li>
-              }
-            </ul>
+            <app-password-rules [value]="passwordValue()" />
           </div>
 
           <div class="field">

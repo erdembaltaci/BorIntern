@@ -56,6 +56,80 @@
       </div>
     </form>
 
+    <form class="card card-pad stack" [formGroup]="passwordForm" (submit)="$event.preventDefault(); changePassword()" novalidate>
+      <div>
+        <h2>Parolayı değiştir</h2>
+        <p class="muted small">Parolanı değiştirince diğer cihazlardaki oturumların kapanır; bu cihazda oturumun açık kalır.</p>
+      </div>
+
+      @if (passwordError(); as message) {
+        <div class="alert alert-error" role="alert">
+          <app-icon name="alert-circle" />
+          <span>{{ message }}</span>
+        </div>
+      }
+
+      <div class="field">
+        <label for="currentPassword">Mevcut parola</label>
+        <input
+          id="currentPassword"
+          class="input"
+          [type]="showPasswords() ? 'text' : 'password'"
+          formControlName="currentPassword"
+          autocomplete="current-password"
+          [class.invalid]="passwordForm.controls.currentPassword.touched && passwordForm.controls.currentPassword.invalid"
+        />
+        @if (passwordForm.controls.currentPassword.touched && passwordForm.controls.currentPassword.invalid) {
+          <span class="field-error">Mevcut parolanı yaz.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="newPassword">Yeni parola</label>
+        <div class="input-wrap">
+          <input
+            id="newPassword"
+            class="input"
+            [type]="showPasswords() ? 'text' : 'password'"
+            formControlName="newPassword"
+            autocomplete="new-password"
+            [class.invalid]="passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.invalid"
+          />
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon btn-sm"
+            [attr.aria-label]="showPasswords() ? 'Parolaları gizle' : 'Parolaları göster'"
+            (click)="showPasswords.set(!showPasswords())"
+          >
+            <app-icon [name]="showPasswords() ? 'eye-off' : 'eye'" />
+          </button>
+        </div>
+        <app-password-rules [value]="newPasswordValue()" />
+      </div>
+
+      <div class="field">
+        <label for="confirmPassword">Yeni parola (tekrar)</label>
+        <input
+          id="confirmPassword"
+          class="input"
+          [type]="showPasswords() ? 'text' : 'password'"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+          [class.invalid]="passwordForm.controls.confirmPassword.touched && passwordForm.hasError('mismatch')"
+        />
+        @if (passwordForm.controls.confirmPassword.touched && passwordForm.hasError('mismatch')) {
+          <span class="field-error">Parolalar eşleşmiyor.</span>
+        }
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" [disabled]="changingPassword()">
+          @if (changingPassword()) { <span class="spinner"></span> }
+          Parolayı değiştir
+        </button>
+      </div>
+    </form>
+
     <section class="card card-pad row-between">
       <div>
         <h2>Oturum</h2>

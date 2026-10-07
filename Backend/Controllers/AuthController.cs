@@ -1,7 +1,9 @@
 using Backend.Dtos;
 using Backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
 
 namespace Backend.Controllers;
 
@@ -47,6 +49,36 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.RefreshTokenAsync(request);
         return Ok(result);
+    }
+
+    // Giriş yapmış kullanıcı parolasını değiştirir. Rate limit: mevcut parola tahmin edilerek denenemesin.
+    // Cevapta yeni token çifti döner (bu oturum açık kalır, diğer cihazlardaki oturumlar kapanır).
+    [Authorize]
+    [EnableRateLimiting("LoginPolicy")]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequestDto request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _authService.ChangePasswordAsync(userId, request);
+        return Ok(result);
+    }
+
+    // "Şifremi unuttum": hesap var olsun olmasın HER ZAMAN aynı cevap döner (e-posta adresleri sızmasın).
+    [EnableRateLimiting("ForgotPolicy")]
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequestDto request)
+    {
+        await _authService.ForgotPasswordAsync(request);
+        return Ok(new { message = "Bu e-posta adresi kayıtlıysa parola sıfırlama bağlantısı gönderildi." });
+    }
+
+    // E-postadaki bağlantıdan gelen anahtarla yeni parola belirler.
+    [EnableRateLimiting("ForgotPolicy")]
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequestDto request)
+    {
+        await _authService.ResetPasswordAsync(request);
+        return NoContent();
     }
 
     // Refresh token'ı iptal eder - "çıkış yap" işlevi.

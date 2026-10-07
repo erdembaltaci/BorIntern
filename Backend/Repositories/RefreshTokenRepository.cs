@@ -23,6 +23,14 @@ public class RefreshTokenRepository : IRefreshTokenRepository
         await _context.RefreshTokens.AddAsync(refreshToken);
     }
 
+    // Tek SQL UPDATE: token'ları belleğe çekmeden toplu iptal eder.
+    public async Task RevokeAllByUserIdAsync(int userId)
+    {
+        await _context.RefreshTokens
+            .Where(rt => rt.UserId == userId && !rt.IsRevoked)
+            .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.IsRevoked, true));
+    }
+
     public async Task<int> DeleteExpiredAsync(DateTime utcNow)
     {
         return await _context.RefreshTokens.Where(rt => rt.ExpiresAt < utcNow).ExecuteDeleteAsync();

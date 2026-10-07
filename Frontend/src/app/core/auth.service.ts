@@ -94,6 +94,25 @@ export class AuthService {
     return firstValueFrom(this.http.post<User>(`${API_URL}/auth/register`, { fullName, email, password }));
   }
 
+  /**
+   * Parola değiştirir. Sunucu diğer cihazlardaki TÜM oturumları kapatır ve bu oturum için yeni bir token çifti verir;
+   * onu kaydederek kullanıcının çıkış yapmasını önleriz ("beni hatırla" tercihi de korunur).
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const res = await firstValueFrom(this.http.post<AuthResponse>(`${API_URL}/auth/change-password`, { currentPassword, newPassword }));
+    this.saveSession(res);
+  }
+
+  /** "Şifremi unuttum": sunucu adres kayıtlı olsun olmasın aynı cevabı verir. */
+  async forgotPassword(email: string): Promise<void> {
+    await firstValueFrom(this.http.post(`${API_URL}/auth/forgot-password`, { email }));
+  }
+
+  /** E-postadaki bağlantıdan gelen anahtarla yeni parola belirler (anahtar tek kullanımlık, 30 dakikalık). */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await firstValueFrom(this.http.post(`${API_URL}/auth/reset-password`, { token, newPassword }));
+  }
+
   /** Çıkışta sunucudaki refresh token da iptal edilir. Sunucuya ulaşılamasa bile yerel oturum her halükârda silinir. */
   async logout(): Promise<void> {
     const refreshToken = this.refreshTokenValue();
