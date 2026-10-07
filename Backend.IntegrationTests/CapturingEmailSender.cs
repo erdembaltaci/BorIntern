@@ -11,6 +11,11 @@ public sealed class CapturingEmailSender : IEmailSender
 {
     private readonly ConcurrentQueue<SentEmail> _sent = new();
 
+    // Testler e-postanın tanımlı olup olmadığını (örn. SMTP yok senaryosu) bu bayrakla değiştirebilir.
+    public bool Configured { get; set; } = true;
+
+    public bool IsConfigured => Configured;
+
     public IReadOnlyCollection<SentEmail> All => _sent.ToArray();
 
     public Task SendAsync(string toEmail, string subject, string body)

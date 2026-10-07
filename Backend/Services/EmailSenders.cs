@@ -3,11 +3,15 @@ using System.Net.Mail;
 
 namespace Backend.Services;
 
-// Gerçek bir SMTP sunucusu tanımlı DEĞİLKEN kullanılır (geliştirme): e-postayı göndermek yerine içeriğini loga yazar.
-// "Şifremi unuttum" bağlantısını backend konsolunda görüp denemek için yeterlidir.
+// Gerçek bir SMTP sunucusu tanımlı DEĞİLKEN kullanılır: e-postayı göndermek yerine içeriğini loga yazar.
+// Not: e-posta yapılandırılmamışken AuthService artık "şifremi unuttum" bağlantısı üretmez (canlıda loglarda geçerli bir
+// sıfırlama bağlantısı kalmasın); bu sınıf, ileride eklenecek diğer e-postalar için güvenli varsayılandır.
 public class LogEmailSender : IEmailSender
 {
     private readonly ILogger<LogEmailSender> _logger;
+
+    // E-posta gerçekte gitmediği için "yapılandırılmış" sayılmaz.
+    public bool IsConfigured => false;
 
     public LogEmailSender(ILogger<LogEmailSender> logger)
     {
@@ -32,6 +36,8 @@ public class SmtpEmailSender : IEmailSender
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<SmtpEmailSender> _logger;
+
+    public bool IsConfigured => true;
 
     public SmtpEmailSender(IConfiguration configuration, ILogger<SmtpEmailSender> logger)
     {

@@ -21,6 +21,13 @@ public interface IAuthService
     // E-postadaki bağlantıdaki anahtarla yeni parola belirler; anahtar tek kullanımlık ve 30 dakikalıktır.
     Task ResetPasswordAsync(ResetPasswordRequestDto request);
 
+    // E-posta gönderimi tanımlı mı (ön yüz buna göre "şifremi unuttum"u gösterir ya da yöneticiye yönlendirir).
+    bool IsEmailEnabled { get; }
+
+    // Yönetici, e-posta olmadan bir kullanıcıya parola sıfırlama bağlantısı verebilsin diye: bağlantı yöneticiye DÖNER
+    // (e-postayla gitmez), yönetici kullanıcıya güvenli bir kanaldan iletir. Aynı tek kullanımlık anahtar mekanizması.
+    Task<PasswordResetLinkDto> CreateResetLinkForUserAsync(int userId);
+
     // Refresh token'ı iptal eder - o andan sonra bu refresh token'la yeni access token alınamaz.
     Task LogoutAsync(RefreshTokenRequestDto request);
 }

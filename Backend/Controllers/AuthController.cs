@@ -81,6 +81,13 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    // Ön yüzün hangi seçenekleri göstereceğini öğrenmesi için herkese açık, hassas olmayan ayarlar.
+    [HttpGet("config")]
+    public IActionResult GetPublicConfig()
+    {
+        return Ok(new PublicConfigDto { EmailEnabled = _authService.IsEmailEnabled });
+    }
+
     // Refresh token'ı iptal eder - "çıkış yap" işlevi.
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(RefreshTokenRequestDto request)

@@ -94,6 +94,19 @@
                       Pasifleştir
                     </button>
                   }
+
+                  @if (user.status === 'Active' && user.id !== currentUserId) {
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-icon btn-sm"
+                      aria-label="Parola sıfırlama bağlantısı oluştur"
+                      title="Parola sıfırlama bağlantısı oluştur"
+                      [disabled]="actingId() === user.id"
+                      (click)="createResetLink(user)"
+                    >
+                      <app-icon name="lock" />
+                    </button>
+                  }
                 </div>
               </td>
             </tr>
@@ -105,3 +118,34 @@
     <app-pager [page]="page()" [totalPages]="totalPages()" (pageChange)="load($event)" />
   }
 </div>
+
+@if (resetLink(); as link) {
+  <app-modal title="Parola sıfırlama bağlantısı" (closed)="closeResetLink()">
+    <div class="stack">
+      <p>
+        <strong>{{ link.userName }}</strong> için tek kullanımlık bağlantı hazır. Bunu kullanıcıya güvenli bir kanaldan ilet
+        (yüz yüze, Teams, WhatsApp gibi); kullanıcı bağlantıyı açıp kendi yeni parolasını belirler.
+      </p>
+
+      <div class="field">
+        <label for="resetLinkInput">Bağlantı</label>
+        <input #linkInput id="resetLinkInput" class="input" type="text" readonly [value]="link.link" (focus)="linkInput.select()" />
+      </div>
+
+      <div class="alert alert-warning">
+        <app-icon name="alert-circle" />
+        <span>
+          Bu bağlantı <strong>yalnızca şimdi</strong> gösterilir, sonradan görüntülenemez. {{ formatDateTime(link.expiresAt) }}
+          tarihine kadar geçerlidir ve bir kez kullanılabilir. Yeni bağlantı üretirsen öncekiler geçersiz olur.
+        </span>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeResetLink()">Kapat</button>
+        <button type="button" class="btn btn-primary" (click)="copyResetLink(linkInput)">
+          @if (copied()) { <app-icon name="check" [size]="16" /> Kopyalandı } @else { Bağlantıyı kopyala }
+        </button>
+      </div>
+    </div>
+  </app-modal>
+}

@@ -69,6 +69,12 @@ export class AuthService {
   readonly isLoggedIn = computed(() => this.user() !== null && this.access() !== null);
   readonly role = computed<Role | null>(() => this.user()?.role ?? null);
 
+  /**
+   * Sunucuda e-posta gönderimi tanımlı mı? null = henüz bilinmiyor. false ise "Şifremi unuttum" yerine kullanıcı
+   * yöneticiye yönlendirilir (yönetici sıfırlama bağlantısını elle iletir).
+   */
+  readonly emailEnabled = signal<boolean | null>(null);
+
   /** Aynı anda gelen birden fazla 401 için TEK refresh isteği atılsın diye saklanır (refresh token tek kullanımlık). */
   private refreshing: Promise<void> | null = null;
 
@@ -78,6 +84,17 @@ export class AuthService {
 
   hasRefreshToken(): boolean {
     return this.refreshTokenValue() !== null;
+  }
+
+  /** Herkese açık ayarları bir kez okur (giriş ve "şifremi unuttum" sayfaları kullanır). Sunucuya ulaşılamazsa bilinmiyor kalır. */
+  async loadPublicConfig(): Promise<void> {
+    if (this.emailEnabled() !== null) return;
+    try {
+      const config = await firstValueFrom(this.http.get<{ emailEnabled: boolean }>(`${API_URL}/auth/config`));
+      this.emailEnabled.set(config.emailEnabled);
+    } catch {
+      /* ağ hatası: bilinmiyor kalır, sayfalar varsayılan davranışa döner */
+    }
   }
 
   async login(email: string, password: string, rememberMe = false): Promise<User> {

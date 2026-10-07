@@ -54,7 +54,9 @@
         <div class="field">
           <div class="label-row">
             <label for="password">Parola</label>
-            <a routerLink="/sifre-unuttum" class="small">Şifremi unuttum</a>
+            @if (emailEnabled() === true) {
+              <a routerLink="/sifre-unuttum" class="small">Şifremi unuttum</a>
+            }
           </div>
           <div class="input-wrap">
             <input
@@ -77,6 +79,9 @@
           </div>
           @if (form.controls.password.touched && form.controls.password.invalid) {
             <span class="field-error">Parola zorunludur.</span>
+          }
+          @if (emailEnabled() === false) {
+            <span class="hint">Parolanı unuttuysan yöneticine başvur; sana bir sıfırlama bağlantısı verecek.</span>
           }
         </div>
 

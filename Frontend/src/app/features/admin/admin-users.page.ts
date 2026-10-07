@@ -5,12 +5,13 @@ import { PAGE_SIZE } from '../../core/config';
 import { ConfirmService } from '../../core/confirm.service';
 import { formatDateTime } from '../../core/date.util';
 import { errorMessage } from '../../core/error.util';
-import { Role, User } from '../../core/models';
+import { PasswordResetLink, Role, User } from '../../core/models';
 import { ToastService } from '../../core/toast.service';
 import { Badge } from '../../shared/badge';
 import { EmptyState } from '../../shared/empty-state';
 import { Icon } from '../../shared/icon';
 import { ROLES, ROLE_LABEL, initials } from '../../shared/labels';
+import { Modal } from '../../shared/modal';
 import { Pager } from '../../shared/pager';
 import { SearchBox } from '../../shared/search-box';
 
@@ -19,7 +20,7 @@ type Tab = 'all' | 'pending';
 /** Yönetici: kullanıcıları listeler, onaylar/pasifleştirir ve rol atar. */
 @Component({
   selector: 'app-admin-users-page',
-  imports: [Icon, Badge, Pager, EmptyState, SearchBox],
+  imports: [Icon, Badge, Modal, Pager, EmptyState, SearchBox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-users.page.html',
   styleUrl: './admin-users.page.css',
@@ -43,6 +44,10 @@ export class AdminUsersPage implements OnInit {
   protected readonly pendingCount = signal(0);
   /** Şu an işlem yapılan kullanıcı (o satırın butonlarını kilitlemek için). */
   protected readonly actingId = signal<number | null>(null);
+
+  // Parola sıfırlama bağlantısı diyaloğu: null = kapalı. Ham anahtar yalnızca burada, bir kez görünür.
+  protected readonly resetLink = signal<PasswordResetLink | null>(null);
+  protected readonly copied = signal(false);
 
   protected readonly roles = ROLES;
   protected readonly roleLabel = ROLE_LABEL;
@@ -88,6 +93,37 @@ export class AdminUsersPage implements OnInit {
       this.error.set(errorMessage(err));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /**
+   * E-posta servisi olmadığında parola sıfırlama: yönetici bağlantıyı üretir ve kullanıcıya güvenli bir kanaldan iletir.
+   * Üretmek parolayı ya da açık oturumları değiştirmez; yalnızca önceki bağlantıları geçersiz kılar.
+   */
+  protected async createResetLink(user: User): Promise<void> {
+    this.actingId.set(user.id);
+    try {
+      this.copied.set(false);
+      this.resetLink.set(await this.api.createResetLink(user.id));
+    } catch (err) {
+      this.toast.error(errorMessage(err));
+    } finally {
+      this.actingId.set(null);
+    }
+  }
+
+  protected closeResetLink(): void {
+    this.resetLink.set(null);
+  }
+
+  /** Panoya kopyalar; tarayıcı izin vermezse kullanıcı kutudaki metni elle kopyalayabilsin diye seçili bırakılır. */
+  protected async copyResetLink(input: HTMLInputElement): Promise<void> {
+    input.select();
+    try {
+      await navigator.clipboard.writeText(input.value);
+      this.copied.set(true);
+    } catch {
+      this.toast.info('Otomatik kopyalanamadı; seçili bağlantıyı Ctrl+C ile kopyala.');
     }
   }
 

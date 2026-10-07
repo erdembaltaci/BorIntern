@@ -37,7 +37,12 @@ dotnet test ../Backend.IntegrationTests   # entegrasyon testleri (LocalDB gereki
 UPDATE Users SET Role = 2, Status = 1 WHERE Email = 'ornek@mail.com';
 ```
 
-**5. E-posta (parola sıfırlama).** `Smtp:Host` tanımlı DEĞİLSE e-posta gerçekten gönderilmez; içeriği (sıfırlama bağlantısı dahil) backend konsoluna/loguna yazılır. Gerçek gönderim için User Secrets ya da ortam değişkeni kullan (parola koda/appsettings'e yazılmaz):
+**5. E-posta (isteğe bağlı) ve parola sıfırlama.** Uygulama bir e-posta servisi OLMADAN tam çalışır:
+- **E-posta doğrulaması yoktur (bilerek):** kayıt olan hesap `Pending` kalır ve bir yönetici onaylamadan giriş yapamaz; bu, e-posta doğrulamasından daha sıkı bir kapıdır.
+- **`Smtp:Host` tanımlı DEĞİLSE** ("şifremi unuttum" e-postası gidemez): giriş ekranı "Şifremi unuttum" yerine "yöneticine başvur" notunu gösterir, `/sifre-unuttum` sayfası yöneticiye yönlendirir ve sunucu anonim istekte bağlantı **üretmez, loga da yazmaz**. Parolasını unutan kullanıcı için **yönetici** (Kullanıcılar ekranında kilit simgesi) tek kullanımlık, 24 saat geçerli bir sıfırlama bağlantısı üretir ve kullanıcıya güvenli bir kanaldan (yüz yüze, Teams, WhatsApp) iletir; kullanıcı bağlantıyı açıp kendi parolasını belirler. Ham anahtar yalnızca bu bağlantıda görünür, veritabanında yalnızca özeti vardır.
+- **`Smtp:Host` tanımlıysa** "Şifremi unuttum" otomatik açılır ve bağlantıyı e-postayla yollar (yönetici yolu da kullanılabilir).
+
+Gerçek gönderim için User Secrets ya da ortam değişkeni kullan (parola koda/appsettings'e yazılmaz):
 
 ```bash
 dotnet user-secrets set "Smtp:Host" "smtp.ornek.com"
@@ -54,7 +59,7 @@ SMTP gönderimi (`SmtpEmailSender`) yazıldı ama gerçek bir SMTP sunucusuna ka
 
 **Veritabanını başka bir sunucuya taşımak** kod değişikliği gerektirmez: yeni sunucuda `dotnet ef database update` çalıştır (veri de gerekiyorsa `BACKUP`/`RESTORE`), sonra `ConnectionStrings:DefaultConnection` değerini yeni adresle güncelle. Production'da aynı anahtar ortam değişkeninden okunur: `ConnectionStrings__DefaultConnection`.
 
-## API Uç Noktaları (54)
+## API Uç Noktaları (56)
 
 Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri (`/groups/mine`, `/tasks/created`, `/admin/users`, `/admin/users/pending`, `/admin/groups`, `/admin/tasks`) ayrıca `?search=` ile sunucu tarafında aranır: kullanıcıda ad/e-posta, grupta grup adı (admin için mentor adı da), görevde başlık/açıklama/stajyer ve mentor adı. Yetki (rol) kontrolü `[Authorize]` ile, sahiplik kontrolü (kayıt sahibi/ilgili mentor olma şartı) serviste yapılır.
 
@@ -66,7 +71,8 @@ Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri
 | `POST /api/auth/refresh` | Herkes | Refresh token ile yeni token çifti (tek kullanımlık) |
 | `POST /api/auth/logout` | Herkes | Refresh token'ı iptal eder |
 | `POST /api/auth/change-password` | Giriş yapmış herkes (dakikada 5) | Parola değiştirir (mevcut parola doğrulanır); diğer cihazlardaki TÜM oturumlar kapanır, bu oturum yeni token çifti alır |
-| `POST /api/auth/forgot-password` | Herkes (dakikada 5) | Parola sıfırlama bağlantısı yollar; adres kayıtlı olsun olmasın aynı cevap (kullanıcı sızmaz) |
+| `GET /api/auth/config` | Herkes | Hassas olmayan ayarlar (`emailEnabled`): arayüz "şifremi unuttum" ya da "yöneticine başvur" gösterir |
+| `POST /api/auth/forgot-password` | Herkes (dakikada 5) | Parola sıfırlama bağlantısını e-postayla yollar (yalnızca e-posta tanımlıysa); adres kayıtlı olsun olmasın aynı cevap (kullanıcı sızmaz) |
 | `POST /api/auth/reset-password` | Herkes (dakikada 5) | E-postadaki anahtarla yeni parola belirler (tek kullanımlık, 30 dk, tüm oturumlar kapanır) |
 | **Profil** | | |
 | `GET /api/users/me` | Giriş yapmış herkes | Kendi profilini görür |
@@ -79,6 +85,7 @@ Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri
 | `GET /api/admin/users/{id}` | Admin | Tekil kullanıcı |
 | `POST /api/admin/approve-user/{id}` | Admin | Pending → Active |
 | `POST /api/admin/deactivate-user/{id}` | Admin | Active → Inactive |
+| `POST /api/admin/users/{id}/reset-link` | Admin | E-posta olmadan parola sıfırlama: tek kullanımlık (24 sa) bağlantıyı yöneticiye döner, yönetici kullanıcıya iletir (yalnızca aktif kullanıcı) |
 | `PUT /api/admin/users/{id}/role` | Admin | Rol atar (kendi rolünü değiştiremez) |
 | `GET /api/admin/groups` | Admin | Tüm gruplar |
 | `GET /api/admin/tasks` | Admin | Tüm görevler |
@@ -387,8 +394,8 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 - **InternshipNote:** ekleme/listeleme/tekil görüntüleme/güncelleme/silme(soft)/restore
 
 **Test:**
-- `Backend.Tests`: 225 unit test (xUnit + Moq), servis kuralları ve sahiplik senaryoları; veritabanı gerektirmez.
-- `Backend.IntegrationTests`: 107 entegrasyon testi. Uygulamayı gerçek HTTP hattıyla (middleware, JWT, yetki, EF Core, hız sınırı) bellek içinde başlatır; her çalıştırmada **benzersiz adlı geçici bir veritabanı** (`PusulaIT_...`) migration'larla kurulur, bitince silinir (geliştirme veritabanına dokunulmaz). Kapsam: kayıt/giriş/refresh/kilit, rol kapıları ve anlık yetki, parola değiştirme/sıfırlama (e-posta yakalayıcıyla), grup/görev/devir, defter onay akışı, duyurular, arama/sayfalama (joker/SQL enjeksiyonu dahil), hız sınırları ve **migration'ların modelle uyumu** (unutulan migration testi kırar).
+- `Backend.Tests`: 232 unit test (xUnit + Moq), servis kuralları ve sahiplik senaryoları; veritabanı gerektirmez.
+- `Backend.IntegrationTests`: 118 entegrasyon testi. Uygulamayı gerçek HTTP hattıyla (middleware, JWT, yetki, EF Core, hız sınırı) bellek içinde başlatır; her çalıştırmada **benzersiz adlı geçici bir veritabanı** (`PusulaIT_...`) migration'larla kurulur, bitince silinir (geliştirme veritabanına dokunulmaz). Kapsam: kayıt/giriş/refresh/kilit, rol kapıları ve anlık yetki, parola değiştirme/sıfırlama (e-posta yakalayıcıyla ve e-posta YOKKEN yönetici bağlantısıyla), grup/görev/devir, defter onay akışı, duyurular, arama/sayfalama (joker/SQL enjeksiyonu dahil), hız sınırları ve **migration'ların modelle uyumu** (unutulan migration testi kırar).
   - Varsayılan sunucu LocalDB'dir. Başka bir SQL Server için: `PUSULA_TEST_CONNECTION="Server=localhost,1433;Database={db};User Id=sa;Password=...;TrustServerCertificate=True"` (`{db}` yerine geçici ad konur).
   - Tüm testler: `dotnet test BorBlog.slnx`
 

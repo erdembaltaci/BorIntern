@@ -117,3 +117,11 @@ export interface Announcement {
   content: string;
   createdAt: string;
 }
+
+/** Yöneticinin bir kullanıcı için ürettiği parola sıfırlama bağlantısı (ham anahtar yalnızca bir kez gösterilir). */
+export interface PasswordResetLink {
+  userId: number;
+  userName: string;
+  link: string;
+  expiresAt: string;
+}

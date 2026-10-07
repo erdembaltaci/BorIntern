@@ -27,6 +27,7 @@ public class PasswordFlowTests
 
         public Fixture()
         {
+            Email.SetupGet(e => e.IsConfigured).Returns(true); // gerçek e-posta tanımlıymış gibi (kapalı hâl ayrı testlerde)
             var config = new Mock<IConfiguration>();
             config.Setup(c => c["Jwt:Key"]).Returns("TestSuperGizliAnahtarEnAz32KarakterOlmaliZorunlu!");
             config.Setup(c => c["Jwt:Issuer"]).Returns("TestIssuer");
@@ -264,5 +265,96 @@ public class PasswordFlowTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => f.Service.ResetPasswordAsync(new ResetPasswordRequestDto { Token = "abc", NewPassword = "BaskaParola3" }));
+    }
+
+    // ================================================================ e-posta yokken ve yönetici destekli sıfırlama
+
+    [Fact]
+    public void IsEmailEnabled_GonderenninYapilandirmaDurumunuYansitir()
+    {
+        var f = new Fixture();
+        Assert.True(f.Service.IsEmailEnabled);
+
+        f.Email.SetupGet(e => e.IsConfigured).Returns(false);
+        Assert.False(f.Service.IsEmailEnabled);
+    }
+
+    [Fact]
+    public async Task Forgot_EpostaYapilandirilmamissa_HicbirSeyYapmaz_BaglantiUretilmezLogaYazilmaz()
+    {
+        var f = new Fixture();
+        f.ActiveUser();
+        f.Email.SetupGet(e => e.IsConfigured).Returns(false);
+
+        await f.Service.ForgotPasswordAsync(new ForgotPasswordRequestDto { Email = "elif@mail.com" });
+
+        // Canlıda SMTP yoksa bile anonim istek geçerli bir sıfırlama bağlantısı üretip loga yazmamalı.
+        f.ResetTokens.Verify(r => r.AddAsync(It.IsAny<PasswordResetToken>()), Times.Never);
+        f.Email.Verify(e => e.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task YoneticiBaglantisi_KullaniciYoksa_NotFoundExceptionFirlatir()
+    {
+        var f = new Fixture();
+        f.Users.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((User?)null);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => f.Service.CreateResetLinkForUserAsync(99));
+    }
+
+    [Theory]
+    [InlineData(UserStatus.Pending)]
+    [InlineData(UserStatus.Inactive)]
+    public async Task YoneticiBaglantisi_AktifOlmayanKullanici_InvalidOperationExceptionFirlatir(UserStatus status)
+    {
+        var f = new Fixture();
+        f.ActiveUser(status);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => f.Service.CreateResetLinkForUserAsync(1));
+        f.ResetTokens.Verify(r => r.AddAsync(It.IsAny<PasswordResetToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task YoneticiBaglantisi_EpostaKapaliykenDeUretilir_HamAnahtarYalnizcaCevaptaOzetVeritabaninda_EpostaGonderilmez()
+    {
+        var f = new Fixture();
+        f.ActiveUser();
+        f.Email.SetupGet(e => e.IsConfigured).Returns(false); // asıl kullanım senaryosu: SMTP yok
+        PasswordResetToken? saved = null;
+        f.ResetTokens.Setup(r => r.AddAsync(It.IsAny<PasswordResetToken>())).Callback<PasswordResetToken>(t => saved = t).Returns(Task.CompletedTask);
+
+        var result = await f.Service.CreateResetLinkForUserAsync(1);
+
+        const string prefix = "https://pusula.example.com/sifre-sifirla?token=";
+        Assert.StartsWith(prefix, result.Link);
+        string raw = result.Link[prefix.Length..];
+        Assert.True(raw.Length >= 40);
+        Assert.Equal(1, result.UserId);
+        Assert.Equal("Elif Saraç", result.UserName);
+        Assert.NotNull(saved);
+        Assert.Equal(TokenHasher.Hash(raw), saved!.TokenHash); // veritabanında yalnızca özet
+        Assert.NotEqual(raw, saved.TokenHash);
+        // Elle iletileceği için 24 saat geçerli.
+        Assert.InRange(result.ExpiresAt, DateTime.UtcNow.AddHours(23.9), DateTime.UtcNow.AddHours(24.1));
+        Assert.Equal(result.ExpiresAt, saved.ExpiresAt);
+        f.ResetTokens.Verify(r => r.InvalidateActiveForUserAsync(1, It.IsAny<DateTime>()), Times.Once); // önceki bağlantılar ölür
+        f.Email.Verify(e => e.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task YoneticiBaglantisi_UretilenAnahtarSifirlamadaCalisir()
+    {
+        var f = new Fixture();
+        var user = f.ActiveUser();
+        PasswordResetToken? saved = null;
+        f.ResetTokens.Setup(r => r.AddAsync(It.IsAny<PasswordResetToken>())).Callback<PasswordResetToken>(t => saved = t).Returns(Task.CompletedTask);
+        var result = await f.Service.CreateResetLinkForUserAsync(1);
+        string raw = result.Link[(result.Link.IndexOf("token=", StringComparison.Ordinal) + 6)..];
+        f.ResetTokens.Setup(r => r.GetByHashAsync(TokenHasher.Hash(raw))).ReturnsAsync(saved);
+
+        await f.Service.ResetPasswordAsync(new ResetPasswordRequestDto { Token = raw, NewPassword = NewPassword });
+
+        Assert.True(Fixture.PasswordMatches(user, NewPassword));
+        Assert.NotNull(saved!.UsedAt);
     }
 }

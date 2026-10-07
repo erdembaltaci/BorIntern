@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
@@ -13,9 +13,11 @@ import { Icon } from '../../shared/icon';
   templateUrl: './login.page.html',
   styleUrl: './auth.css',
 })
-export class LoginPage {
+export class LoginPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
+  /** E-posta tanımlıysa "Şifremi unuttum" bağlantısı, değilse "yöneticine başvur" notu gösterilir. */
+  protected readonly emailEnabled = this.auth.emailEnabled;
   private readonly router = inject(Router);
   protected readonly themeService = inject(ThemeService);
 
@@ -32,6 +34,10 @@ export class LoginPage {
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly showPassword = signal(false);
+
+  ngOnInit(): void {
+    void this.auth.loadPublicConfig();
+  }
 
   protected async submit(): Promise<void> {
     if (this.form.invalid) {

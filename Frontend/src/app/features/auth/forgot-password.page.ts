@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
@@ -14,10 +14,12 @@ import { Icon } from '../../shared/icon';
   templateUrl: './forgot-password.page.html',
   styleUrl: './auth.css',
 })
-export class ForgotPasswordPage {
+export class ForgotPasswordPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   protected readonly themeService = inject(ThemeService);
+  /** false: bu kurulumda e-posta gönderimi yok, form yerine yöneticiye yönlendirme gösterilir. */
+  protected readonly emailEnabled = this.auth.emailEnabled;
 
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -27,6 +29,10 @@ export class ForgotPasswordPage {
   protected readonly error = signal<string | null>(null);
   /** Gönderildiyse formun yerine bilgilendirme gösterilir. */
   protected readonly sentTo = signal<string | null>(null);
+
+  ngOnInit(): void {
+    void this.auth.loadPublicConfig();
+  }
 
   protected async submit(): Promise<void> {
     if (this.form.invalid) {

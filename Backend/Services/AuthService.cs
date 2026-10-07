@@ -21,8 +21,11 @@ public class AuthService : IAuthService
     private readonly IEmailSender _emailSender;
     private readonly PasswordHasher<User> _passwordHasher = new();
 
-    // "Şifremi unuttum" bağlantısı bu kadar dakika geçerlidir.
+    // "Şifremi unuttum" bağlantısı bu kadar dakika geçerlidir (e-postayla anında ulaşır).
     private const int ResetTokenMinutes = 30;
+
+    // Yöneticinin ürettiği bağlantı elle iletildiği için daha uzun yaşar (yine tek kullanımlıktır, ham değer saklanmaz).
+    private const int AdminResetTokenHours = 24;
 
     public AuthService(
         IUserRepository userRepository,
@@ -184,8 +187,41 @@ public class AuthService : IAuthService
         return await BuildAuthResponseAsync(user);
     }
 
+    public bool IsEmailEnabled => _emailSender.IsConfigured;
+
+    public async Task<PasswordResetLinkDto> CreateResetLinkForUserAsync(int userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new NotFoundException("Kullanıcı bulunamadı.");
+        }
+
+        // Onay bekleyen/pasif hesapların zaten girişi yok; sıfırlama bağlantısı onlara anlamsız (ve kullanılamaz) olurdu.
+        if (user.Status != UserStatus.Active)
+        {
+            throw new InvalidOperationException("Sıfırlama bağlantısı yalnızca aktif kullanıcılar için üretilebilir.");
+        }
+
+        var (rawToken, expiresAt) = await IssueResetTokenAsync(user.Id, TimeSpan.FromHours(AdminResetTokenHours));
+        return new PasswordResetLinkDto
+        {
+            UserId = user.Id,
+            UserName = user.FullName,
+            Link = BuildResetLink(rawToken),
+            ExpiresAt = expiresAt
+        };
+    }
+
     public async Task ForgotPasswordAsync(ForgotPasswordRequestDto request)
     {
+        // E-posta tanımlı değilken hiçbir şey yapılmaz: bağlantı üretilmez, loga da yazılmaz (canlıda loglarda geçerli
+        // bir sıfırlama bağlantısı kalmasın). Bu durumda sıfırlamayı yönetici yapar (CreateResetLinkForUserAsync).
+        if (!_emailSender.IsConfigured)
+        {
+            return;
+        }
+
         var user = await _userRepository.GetByEmailAsync(request.Email.Trim());
 
         // Kayıtsız ya da aktif olmayan (onay bekleyen/pasif) hesap: hiçbir şey yapılmaz, hata da verilmez.
@@ -194,21 +230,8 @@ public class AuthService : IAuthService
             return;
         }
 
-        string rawToken = GenerateUrlSafeToken();
-        var now = DateTime.UtcNow;
-
-        // Yeniden istenirse önceki bağlantılar ölür: sadece en son gelen e-postadaki bağlantı çalışır.
-        await _resetTokenRepository.InvalidateActiveForUserAsync(user.Id, now);
-        await _resetTokenRepository.AddAsync(new PasswordResetToken
-        {
-            UserId = user.Id,
-            TokenHash = TokenHasher.Hash(rawToken),
-            ExpiresAt = now.AddMinutes(ResetTokenMinutes)
-        });
-        await _resetTokenRepository.SaveChangesAsync();
-
-        string frontendUrl = (_configuration["App:FrontendUrl"] ?? "http://localhost:4200").TrimEnd('/');
-        string link = $"{frontendUrl}/sifre-sifirla?token={rawToken}";
+        var (rawToken, _) = await IssueResetTokenAsync(user.Id, TimeSpan.FromMinutes(ResetTokenMinutes));
+        string link = BuildResetLink(rawToken);
 
         await _emailSender.SendAsync(
             user.Email,
@@ -303,6 +326,32 @@ public class AuthService : IAuthService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    // Yeni bir sıfırlama anahtarı üretir: önceki kullanılmamış bağlantılar geçersiz kılınır (sadece EN SON üretilen çalışır),
+    // veritabanına yalnızca özeti yazılır. Ham anahtar çağırana döner ve başka hiçbir yerde saklanmaz.
+    private async Task<(string RawToken, DateTime ExpiresAt)> IssueResetTokenAsync(int userId, TimeSpan lifetime)
+    {
+        string rawToken = GenerateUrlSafeToken();
+        var now = DateTime.UtcNow;
+        var expiresAt = now.Add(lifetime);
+
+        await _resetTokenRepository.InvalidateActiveForUserAsync(userId, now);
+        await _resetTokenRepository.AddAsync(new PasswordResetToken
+        {
+            UserId = userId,
+            TokenHash = TokenHasher.Hash(rawToken),
+            ExpiresAt = expiresAt
+        });
+        await _resetTokenRepository.SaveChangesAsync();
+
+        return (rawToken, expiresAt);
+    }
+
+    private string BuildResetLink(string rawToken)
+    {
+        string frontendUrl = (_configuration["App:FrontendUrl"] ?? "http://localhost:4200").TrimEnd('/');
+        return $"{frontendUrl}/sifre-sifirla?token={rawToken}";
     }
 
     // 32 bayt rastgele, URL'de kaçış gerektirmeyen (base64url) anahtar: e-postadaki bağlantıya olduğu gibi konabilir.

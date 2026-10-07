@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { API_URL } from './config';
-import { Announcement, CreateTaskRequest, Group, GroupMember, Note, NotePayload, NoteStatus, Paged, Role, TaskItem, TaskStatus, TaskSummary, User } from './models';
+import { Announcement, CreateTaskRequest, PasswordResetLink, Group, GroupMember, Note, NotePayload, NoteStatus, Paged, Role, TaskItem, TaskStatus, TaskSummary, User } from './models';
 
 /**
  * Backend uç noktalarının tamamı burada, tek yerde. Bileşenler URL bilmez, sadece "grubu getir" der.
@@ -33,6 +33,13 @@ export class ApiService {
   }
   deactivateUser(userId: number): Promise<User> {
     return this.post(`/admin/deactivate-user/${userId}`, {});
+  }
+  /**
+   * E-posta olmadan parola sıfırlama: bağlantı yöneticiye döner, yönetici kullanıcıya güvenli bir kanaldan iletir.
+   * Bağlantı tek kullanımlık ve 24 saat geçerli; ham anahtar bir daha gösterilemez, önceki bağlantılar geçersiz olur.
+   */
+  createResetLink(userId: number): Promise<PasswordResetLink> {
+    return this.post(`/admin/users/${userId}/reset-link`, {});
   }
   changeUserRole(userId: number, role: Role): Promise<User> {
     return this.put(`/admin/users/${userId}/role`, { role });

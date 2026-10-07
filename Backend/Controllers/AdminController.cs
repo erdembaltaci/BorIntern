@@ -15,18 +15,29 @@ public class AdminController : ControllerBase
     private readonly IUserService _userService;
     private readonly IGroupService _groupService;
     private readonly ITaskService _taskService;
+    private readonly IAuthService _authService;
 
-    public AdminController(IUserService userService, IGroupService groupService, ITaskService taskService)
+    public AdminController(IUserService userService, IGroupService groupService, ITaskService taskService, IAuthService authService)
     {
         _userService = userService;
         _groupService = groupService;
         _taskService = taskService;
+        _authService = authService;
     }
 
     [HttpPost("approve-user/{userId}")]
     public async Task<IActionResult> ApproveUser(int userId)
     {
         var result = await _userService.ApproveUserAsync(userId);
+        return Ok(result);
+    }
+
+    // E-posta olmadan parola sıfırlama: bağlantı yöneticiye döner, yönetici kullanıcıya güvenli bir kanaldan iletir.
+    // Ham anahtar yalnızca bu cevapta görünür (tek kullanımlık, 24 saat geçerli); önceki bağlantılar geçersiz olur.
+    [HttpPost("users/{userId}/reset-link")]
+    public async Task<IActionResult> CreateResetLink(int userId)
+    {
+        var result = await _authService.CreateResetLinkForUserAsync(userId);
         return Ok(result);
     }
 
