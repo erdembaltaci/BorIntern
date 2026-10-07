@@ -182,3 +182,7 @@ app.UseRateLimiter();
 app.MapControllers();
 
 app.Run();
+
+// Entegrasyon testleri (WebApplicationFactory<Program>) uygulamayı gerçek HTTP hattıyla başlatabilsin diye.
+// Top-level statements ile yazılan Program sınıfı varsayılan olarak internal olur; bu satır onu test projesine açar.
+public partial class Program { }

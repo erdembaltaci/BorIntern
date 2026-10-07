@@ -27,7 +27,8 @@ dotnet user-secrets set "Jwt:Audience" "BorBlogClient"
 ```bash
 dotnet ef database update      # migration'lardan tabloları kurar
 dotnet run                     # http://localhost:5291/swagger
-dotnet test ../Backend.Tests   # unit testler
+dotnet test ../Backend.Tests              # unit testler (hızlı, veritabanı gerekmez)
+dotnet test ../Backend.IntegrationTests   # entegrasyon testleri (LocalDB gerekir, ayrı geçici veritabanı kurar/siler)
 ```
 
 **4. İlk Admin'i elle ata.** Register her zaman Intern + Pending oluşturur. Diğer roller (Mentor/Admin) Admin tarafından `PUT /api/admin/users/{id}/role` ile atanır (body: `{"role":"Mentor"}`), ama ilk Admin'i bir kez SQL ile atamak gerekir (Role: 0=Intern, 1=Mentor, 2=Admin; Status: 0=Pending, 1=Active, 2=Inactive):
@@ -240,6 +241,7 @@ BorBlog/
 │   ├── Migrations/
 │   └── Program.cs            (DI, JWT, CORS, rate limit, middleware sırası)
 ├── Backend.Tests/            (xUnit + Moq unit testleri)
+├── Backend.IntegrationTests/ (WebApplicationFactory: gerçek HTTP hattı + geçici SQL Server veritabanı)
 ├── Frontend/                 (Angular 22, standalone + signals, lazy-load sayfalar)
 │   └── src/app/
 │       ├── core/             (ApiService, AuthService, interceptor, guard'lar, modeller)
@@ -367,7 +369,7 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 
 ## 10. Şu Ana Kadar Tamamlananlar
 
-**Altyapı:** Git+GitHub, Docker'da SQL Server (kalıcı volume), User Secrets ile gizli veri yönetimi, `BorBlog.slnx` altında `Backend` + `Backend.Tests`.
+**Altyapı:** Git+GitHub, Docker'da SQL Server (kalıcı volume), User Secrets ile gizli veri yönetimi, `BorBlog.slnx` altında `Backend` + `Backend.Tests` + `Backend.IntegrationTests`.
 
 **Mimari:** Tam N-katmanlı yapı — `Controller → Service → Repository → AppDbContext`. `BaseEntity`/`SoftDeletableEntity` ile ortak alanlar tekilleştirildi. Özel exception tipleri (`NotFoundException`/`UnauthorizedException`/`ForbiddenException`/`ConflictException`) + `ExceptionHandlingMiddleware` ile controller'larda `try/catch` yok, hatalar merkezi olarak doğru HTTP koduna çevriliyor. `RequestLoggingMiddleware` her isteğin giriş/çıkışını ve HTTP kodunu loglar.
 
@@ -384,18 +386,22 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 - **Task:** oluşturma/durum güncelleme/listeleme/tekil görüntüleme/silme(soft)/restore/performans özeti, Admin tüm görevleri görebilir
 - **InternshipNote:** ekleme/listeleme/tekil görüntüleme/güncelleme/silme(soft)/restore
 
-**Test:** `Backend.Tests` içinde 225 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
+**Test:**
+- `Backend.Tests`: 225 unit test (xUnit + Moq), servis kuralları ve sahiplik senaryoları; veritabanı gerektirmez.
+- `Backend.IntegrationTests`: 107 entegrasyon testi. Uygulamayı gerçek HTTP hattıyla (middleware, JWT, yetki, EF Core, hız sınırı) bellek içinde başlatır; her çalıştırmada **benzersiz adlı geçici bir veritabanı** (`PusulaIT_...`) migration'larla kurulur, bitince silinir (geliştirme veritabanına dokunulmaz). Kapsam: kayıt/giriş/refresh/kilit, rol kapıları ve anlık yetki, parola değiştirme/sıfırlama (e-posta yakalayıcıyla), grup/görev/devir, defter onay akışı, duyurular, arama/sayfalama (joker/SQL enjeksiyonu dahil), hız sınırları ve **migration'ların modelle uyumu** (unutulan migration testi kırar).
+  - Varsayılan sunucu LocalDB'dir. Başka bir SQL Server için: `PUSULA_TEST_CONNECTION="Server=localhost,1433;Database={db};User Id=sa;Password=...;TrustServerCertificate=True"` (`{db}` yerine geçici ad konur).
+  - Tüm testler: `dotnet test BorBlog.slnx`
 
 **Frontend:** `Frontend/` klasöründe Angular arayüzü var (giriş/kayıt + "beni hatırla", rol bazlı panel, sürükle-bırak görev panosu, onay akışlı staj defteri + PDF çıktı, mentor defter onayları, gruplar, grup duyuruları, admin ekranları, her listede arama; açık/koyu tema, mobil uyumlu). Hiçbir liste "tüm kayıtları çekmez": her şey sunucudan 10'arlı sayfalarla gelir. Çalıştırma: backend `dotnet run`, sonra `cd Frontend && npm install && npm start` (http://localhost:4200). Backend adresi `Frontend/src/app/core/config.ts` içinde.
 
-**Henüz yapılmadı (bilerek sonraya bırakılan):** kalıcı entegrasyon test projesi (`WebApplicationFactory` + ayrı test veritabanı), Docker Compose (Backend+SQL+RabbitMQ birlikte), RabbitMQ (register sonrası email bildirimi), Azure'a canlıya alma.
+**Henüz yapılmadı (bilerek sonraya bırakılan):** Docker Compose (Backend+SQL+RabbitMQ birlikte), RabbitMQ (register sonrası email bildirimi), Azure'a canlıya alma.
 
 ## 11. Sıradaki Adım (bir sonraki oturum)
 
 1. **AI entegrasyonu** (defter yapılandırılmış olduğu için hazır zemin): günün tamamlanan görevlerinden defter taslağı, metni resmî dile çevirme, haftalık özet, etiketlerden beceri çıkarımı.
 2. Bildirimler (yeni görev, duyuru, defter onayı/düzeltme): önce uygulama içi, sonra e-posta (RabbitMQ).
 3. Görev yorumları ve dosya eki; mentor haftalık değerlendirmesi (puan/geri bildirim); takvim görünümü; admin raporları ve grafikler.
-4. Uçtan uca testleri kalıcı bir entegrasyon test projesine taşı (`WebApplicationFactory` + ayrı test veritabanı); şimdilik tarayıcı senaryoları geçici betiklerle doğrulandı, repo'da yok.
+4. Tarayıcı (arayüz) senaryolarını kalıcı hâle getir (Playwright); şimdilik arayüz akışları geçici betiklerle doğrulandı, repo'da yok. Frontend'de birim test de yok.
 5. (Tartışmalı bir davranış) Admin tüm grupları görebiliyor ama bir grubun üyelerini listeleyemiyor ve görev atayamıyor; bilerek böyle bırakıldı.
 6. Daha sonra: Docker Compose ile Backend+SQL tek komutla ayağa kaldırma, Azure'a canlıya alma.
 
