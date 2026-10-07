@@ -6,7 +6,15 @@ public interface ITaskService
 {
     Task<TaskDto> CreateTaskAsync(int mentorId, CreateTaskRequestDto request);
     Task<TaskDto> UpdateTaskStatusAsync(int userId, int taskId, UpdateTaskStatusRequestDto request);
-    Task<PagedResultDto<TaskDto>> GetMyTasksAsync(int userId, int page, int pageSize);
+    // status: "Todo" / "InProgress" / "Completed" (boş = hepsi). Geçersiz değer 400 döner.
+    Task<PagedResultDto<TaskDto>> GetMyTasksAsync(int userId, int page, int pageSize, string? status);
+
+    // Stajyerin kendi özeti (durum sayıları + geciken) ve panel için yaklaşan görevler.
+    Task<TaskSummaryDto> GetMySummaryAsync(int userId);
+    Task<List<TaskDto>> GetMyUpcomingTasksAsync(int userId, int take);
+
+    // Mentor'un kendi oluşturduğu (atadığı) görevler.
+    Task<PagedResultDto<TaskDto>> GetCreatedTasksAsync(int mentorId, int page, int pageSize, string? search);
 
     // Tekil görev görüntüleme: sadece görevin sahibi (atanan stajyer) ya da onu oluşturan mentor.
     Task<TaskDto> GetTaskByIdAsync(int callerId, int taskId);
@@ -19,5 +27,5 @@ public interface ITaskService
     Task<TaskSummaryDto> GetPerformanceSummaryAsync(int mentorId, int userId);
 
     // Admin, tüm görevleri (hangi mentor/stajyer olursa olsun) görebilir.
-    Task<PagedResultDto<TaskDto>> GetAllTasksAsync(int page, int pageSize);
+    Task<PagedResultDto<TaskDto>> GetAllTasksAsync(int page, int pageSize, string? search);
 }

@@ -16,7 +16,7 @@ public class GroupServiceTests
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GroupNameExistsAsync("Backend Ekibi")).ReturnsAsync(true);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         var request = new CreateGroupRequestDto { Name = "Backend Ekibi" };
 
@@ -34,7 +34,7 @@ public class GroupServiceTests
             .Callback<Group>(g => capturedGroup = g)
             .Returns(Task.CompletedTask);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         var request = new CreateGroupRequestDto { Name = "Backend Ekibi" };
         var result = await service.CreateGroupAsync(mentorId: 42, request);
@@ -50,15 +50,15 @@ public class GroupServiceTests
     public async Task GetMyGroupsAsync_RepodanGelenListeyiDtoyaCevirir()
     {
         var mockRepo = new Mock<IGroupRepository>();
-        mockRepo.Setup(r => r.GetPagedByMentorIdAsync(1, 1, 20)).ReturnsAsync((new List<Group>
+        mockRepo.Setup(r => r.GetPagedByMentorIdAsync(1, 1, 20, null)).ReturnsAsync((new List<Group>
         {
             new() { Id = 1, Name = "Grup A", MentorId = 1 },
             new() { Id = 2, Name = "Grup B", MentorId = 1 }
         }, 2));
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
-        var result = await service.GetMyGroupsAsync(1, page: 1, pageSize: 20);
+        var result = await service.GetMyGroupsAsync(1, page: 1, pageSize: 20, search: null);
 
         Assert.Equal(2, result.Items.Count);
         Assert.Equal(2, result.TotalCount);
@@ -71,7 +71,7 @@ public class GroupServiceTests
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((Group?)null);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<NotFoundException>(() => service.GetGroupByIdAsync(mentorId: 1, groupId: 99));
     }
@@ -84,7 +84,7 @@ public class GroupServiceTests
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.GetGroupByIdAsync(mentorId: 1, groupId: 1));
     }
@@ -98,7 +98,7 @@ public class GroupServiceTests
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
         mockRepo.Setup(r => r.GroupNameExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         var result = await service.UpdateGroupNameAsync(1, 1, new CreateGroupRequestDto { Name = "Yeni Isim" });
 
@@ -113,7 +113,7 @@ public class GroupServiceTests
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         var request = new CreateGroupRequestDto { Name = "Yeni Isim" };
         await Assert.ThrowsAsync<ForbiddenException>(() => service.UpdateGroupNameAsync(1, 1, request));
@@ -127,7 +127,7 @@ public class GroupServiceTests
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         await service.DeleteGroupAsync(mentorId: 1, groupId: 1);
 
@@ -143,7 +143,7 @@ public class GroupServiceTests
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.DeleteGroupAsync(mentorId: 1, groupId: 1));
     }
@@ -156,7 +156,7 @@ public class GroupServiceTests
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(group);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RestoreGroupAsync(1, 1));
     }
@@ -172,7 +172,7 @@ public class GroupServiceTests
         var mockRepo = new Mock<IGroupRepository>();
         mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(group);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         var result = await service.RestoreGroupAsync(1, 1);
 
@@ -185,15 +185,15 @@ public class GroupServiceTests
     public async Task GetAllGroupsAsync_TumGruplariMentorFiltresiOlmadanDoner()
     {
         var mockRepo = new Mock<IGroupRepository>();
-        mockRepo.Setup(r => r.GetPagedAllAsync(1, 20)).ReturnsAsync((new List<Group>
+        mockRepo.Setup(r => r.GetPagedAllAsync(1, 20, null)).ReturnsAsync((new List<Group>
         {
             new() { Id = 1, Name = "Grup A", MentorId = 1 },
             new() { Id = 2, Name = "Grup B", MentorId = 2 }
         }, 2));
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
-        var result = await service.GetAllGroupsAsync(page: 1, pageSize: 20);
+        var result = await service.GetAllGroupsAsync(page: 1, pageSize: 20, search: null);
 
         Assert.Equal(2, result.Items.Count);
     }
@@ -207,7 +207,7 @@ public class GroupServiceTests
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
         mockRepo.Setup(r => r.GroupNameExistsAsync("Baska Grubun Adi")).ReturnsAsync(true);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ConflictException>(
             () => service.UpdateGroupNameAsync(1, 1, new CreateGroupRequestDto { Name = "Baska Grubun Adi" }));
@@ -222,10 +222,63 @@ public class GroupServiceTests
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(group);
         mockRepo.Setup(r => r.GroupNameExistsAsync("Ayni Isim")).ReturnsAsync(true);
 
-        var service = new GroupService(mockRepo.Object);
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
 
         var result = await service.UpdateGroupNameAsync(1, 1, new CreateGroupRequestDto { Name = "Ayni Isim" });
 
         Assert.Equal("Ayni Isim", result.Name);
+    }
+
+    [Fact]
+    public async Task GetMyGroupsAsync_AramaMetniKirpilarakRepositoryeAktarilir()
+    {
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetPagedByMentorIdAsync(1, 1, 20, "yaz")).ReturnsAsync((new List<Group>(), 0));
+
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
+
+        await service.GetMyGroupsAsync(1, page: 1, pageSize: 20, search: " yaz ");
+
+        mockRepo.Verify(r => r.GetPagedByMentorIdAsync(1, 1, 20, "yaz"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllGroupsAsync_AramaMetniKirpilarakRepositoryeAktarilir()
+    {
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetPagedAllAsync(1, 20, "zeynep")).ReturnsAsync((new List<Group>(), 0));
+
+        var service = new GroupService(mockRepo.Object, TestMocks.EmptyUsers());
+
+        await service.GetAllGroupsAsync(page: 1, pageSize: 20, search: "zeynep ");
+
+        mockRepo.Verify(r => r.GetPagedAllAsync(1, 20, "zeynep"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllGroupsAsync_MentorAdiTekTopluSorguylaDoldurulur()
+    {
+        var mockRepo = new Mock<IGroupRepository>();
+        mockRepo.Setup(r => r.GetPagedAllAsync(1, 20, null)).ReturnsAsync((new List<Group>
+        {
+            new() { Id = 1, Name = "G1", MentorId = 9 },
+            new() { Id = 2, Name = "G2", MentorId = 9 },
+            new() { Id = 3, Name = "G3", MentorId = 10 }
+        }, 3));
+
+        var mockUsers = new Mock<IUserRepository>();
+        mockUsers.Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<int>>())).ReturnsAsync(new List<User>
+        {
+            new() { Id = 9, FullName = "Zeynep Kaya" }
+        });
+
+        var service = new GroupService(mockRepo.Object, mockUsers.Object);
+
+        var result = await service.GetAllGroupsAsync(page: 1, pageSize: 20, search: null);
+
+        Assert.Equal("Zeynep Kaya", result.Items[0].MentorName);
+        Assert.Equal("Zeynep Kaya", result.Items[1].MentorName);
+        Assert.Equal(string.Empty, result.Items[2].MentorName);
+        mockUsers.Verify(r => r.GetByIdsAsync(It.IsAny<IEnumerable<int>>()), Times.Once);
     }
 }

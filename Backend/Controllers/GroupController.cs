@@ -34,10 +34,10 @@ public class GroupController : ControllerBase
     // Mentor, kendi gruplarını listeler.
     [Authorize(Roles = "Mentor")]
     [HttpGet("mine")]
-    public async Task<IActionResult> GetMyGroups(int page = 1, int pageSize = Pagination.DefaultPageSize)
+    public async Task<IActionResult> GetMyGroups(int page = 1, int pageSize = Pagination.DefaultPageSize, string? search = null)
     {
         var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var result = await _groupService.GetMyGroupsAsync(mentorId, page, pageSize);
+        var result = await _groupService.GetMyGroupsAsync(mentorId, page, pageSize, search);
         return Ok(result);
     }
 

@@ -12,11 +12,16 @@ public class TaskService : ITaskService
 {
     private readonly ITaskRepository _taskRepository;
     private readonly IGroupMemberRepository _groupMemberRepository;
+    private readonly IUserRepository _userRepository;
 
-    public TaskService(ITaskRepository taskRepository, IGroupMemberRepository groupMemberRepository)
+    public TaskService(
+        ITaskRepository taskRepository,
+        IGroupMemberRepository groupMemberRepository,
+        IUserRepository userRepository)
     {
         _taskRepository = taskRepository;
         _groupMemberRepository = groupMemberRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<TaskDto> CreateTaskAsync(int mentorId, CreateTaskRequestDto request)
@@ -40,7 +45,7 @@ public class TaskService : ITaskService
         await _taskRepository.AddAsync(task);
         await _taskRepository.SaveChangesAsync();
 
-        return MapToDto(task);
+        return await MapOneAsync(task);
     }
 
     public async Task<TaskDto> UpdateTaskStatusAsync(int userId, int taskId, UpdateTaskStatusRequestDto request)
@@ -65,14 +70,46 @@ public class TaskService : ITaskService
         task.Status = newStatus;
         await _taskRepository.SaveChangesAsync();
 
-        return MapToDto(task);
+        return await MapOneAsync(task);
     }
 
-    public async Task<PagedResultDto<TaskDto>> GetMyTasksAsync(int userId, int page, int pageSize)
+    // status: "Todo" / "InProgress" / "Completed" ya da boş (hepsi). Pano görünümü her sütun için ayrı sayfa ister.
+    public async Task<PagedResultDto<TaskDto>> GetMyTasksAsync(int userId, int page, int pageSize, string? status)
     {
         (page, pageSize) = Pagination.Normalize(page, pageSize);
-        var (tasks, totalCount) = await _taskRepository.GetPagedByAssignedUserIdAsync(userId, page, pageSize);
-        return PagedResultDto<TaskDto>.Create(tasks.Select(MapToDto).ToList(), page, pageSize, totalCount);
+        var (tasks, totalCount) = await _taskRepository.GetPagedByAssignedUserIdAsync(userId, page, pageSize, ParseStatusFilter(status));
+        return PagedResultDto<TaskDto>.Create(await MapAllAsync(tasks), page, pageSize, totalCount);
+    }
+
+    // Durum sayıları + geciken görev sayısı, tek gruplu sorguyla (görevleri belleğe çekmeden).
+    public async Task<TaskSummaryDto> GetMySummaryAsync(int userId)
+    {
+        // Bitiş günü "gün" bilgisi taşıdığı için kıyaslama bugünün başlangıcına göre yapılır.
+        var counts = await _taskRepository.GetStatusCountsAsync(userId, DateTime.UtcNow.Date);
+
+        return new TaskSummaryDto
+        {
+            TotalTasks = counts.Todo + counts.InProgress + counts.Completed,
+            TodoCount = counts.Todo,
+            InProgressCount = counts.InProgress,
+            CompletedCount = counts.Completed,
+            OverdueCount = counts.Overdue
+        };
+    }
+
+    // Panelin "yaklaşan görevler" listesi: bitmemiş görevler, bitiş tarihi en yakın olandan (tarihsizler sonda).
+    public async Task<List<TaskDto>> GetMyUpcomingTasksAsync(int userId, int take)
+    {
+        take = Math.Clamp(take, 1, 20);
+        var tasks = await _taskRepository.GetUpcomingByAssignedUserIdAsync(userId, take);
+        return await MapAllAsync(tasks);
+    }
+
+    public async Task<PagedResultDto<TaskDto>> GetCreatedTasksAsync(int mentorId, int page, int pageSize, string? search)
+    {
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (tasks, totalCount) = await _taskRepository.GetPagedByCreatorIdAsync(mentorId, page, pageSize, Pagination.NormalizeSearch(search));
+        return PagedResultDto<TaskDto>.Create(await MapAllAsync(tasks), page, pageSize, totalCount);
     }
 
     public async Task<TaskDto> GetTaskByIdAsync(int callerId, int taskId)
@@ -89,7 +126,7 @@ public class TaskService : ITaskService
             throw new ForbiddenException("Bu görevi görme yetkiniz yok.");
         }
 
-        return MapToDto(task);
+        return await MapOneAsync(task);
     }
 
     public async Task DeleteTaskAsync(int mentorId, int taskId)
@@ -132,7 +169,7 @@ public class TaskService : ITaskService
         task.DeletedAt = null;
         await _taskRepository.SaveChangesAsync();
 
-        return MapToDto(task);
+        return await MapOneAsync(task);
     }
 
     public async Task<TaskSummaryDto> GetPerformanceSummaryAsync(int mentorId, int userId)
@@ -155,14 +192,43 @@ public class TaskService : ITaskService
         };
     }
 
-    public async Task<PagedResultDto<TaskDto>> GetAllTasksAsync(int page, int pageSize)
+    public async Task<PagedResultDto<TaskDto>> GetAllTasksAsync(int page, int pageSize, string? search)
     {
         (page, pageSize) = Pagination.Normalize(page, pageSize);
-        var (tasks, totalCount) = await _taskRepository.GetPagedAllAsync(page, pageSize);
-        return PagedResultDto<TaskDto>.Create(tasks.Select(MapToDto).ToList(), page, pageSize, totalCount);
+        var (tasks, totalCount) = await _taskRepository.GetPagedAllAsync(page, pageSize, Pagination.NormalizeSearch(search));
+        return PagedResultDto<TaskDto>.Create(await MapAllAsync(tasks), page, pageSize, totalCount);
     }
 
-    private static TaskDto MapToDto(TaskItem task)
+    // Boş değer "filtre yok"; geçersiz bir metin sessizce yok sayılmaz, istemciye hata olarak döner.
+    private static TaskStatus? ParseStatusFilter(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return null;
+        }
+
+        if (!Enum.TryParse<TaskStatus>(status.Trim(), ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
+        {
+            throw new InvalidOperationException("Geçersiz görev durumu.");
+        }
+
+        return parsed;
+    }
+
+    // Atanan ve atayan kişilerin adları, görev başına ayrı sorgu atmamak için tek seferde (toplu) getirilir.
+    private async Task<List<TaskDto>> MapAllAsync(List<TaskItem> tasks)
+    {
+        var userIds = tasks.SelectMany(t => new[] { t.AssignedUserId, t.CreatedByUserId });
+        var names = (await _userRepository.GetByIdsAsync(userIds)).ToDictionary(u => u.Id, u => u.FullName);
+        return tasks.Select(t => MapToDto(t, names)).ToList();
+    }
+
+    private async Task<TaskDto> MapOneAsync(TaskItem task)
+    {
+        return (await MapAllAsync(new List<TaskItem> { task }))[0];
+    }
+
+    private static TaskDto MapToDto(TaskItem task, Dictionary<int, string> names)
     {
         return new TaskDto
         {
@@ -172,7 +238,9 @@ public class TaskService : ITaskService
             Status = task.Status.ToString(),
             DueDate = task.DueDate,
             AssignedUserId = task.AssignedUserId,
+            AssignedUserName = names.GetValueOrDefault(task.AssignedUserId, string.Empty),
             CreatedByUserId = task.CreatedByUserId,
+            CreatedByUserName = names.GetValueOrDefault(task.CreatedByUserId, string.Empty),
             CreatedAt = task.CreatedAt
         };
     }

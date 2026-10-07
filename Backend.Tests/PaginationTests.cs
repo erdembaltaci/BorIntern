@@ -31,4 +31,15 @@ public class PaginationTests
 
         Assert.Equal(expectedPages, dto.TotalPages);
     }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData("  ali  ", "ali")]
+    [InlineData("ali veli", "ali veli")]
+    public void NormalizeSearch_BoslukluVeyaBosMetniDuzeltir(string? input, string? expected)
+    {
+        Assert.Equal(expected, Pagination.NormalizeSearch(input));
+    }
 }

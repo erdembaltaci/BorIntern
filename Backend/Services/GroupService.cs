@@ -8,10 +8,12 @@ namespace Backend.Services;
 public class GroupService : IGroupService
 {
     private readonly IGroupRepository _groupRepository;
+    private readonly IUserRepository _userRepository;
 
-    public GroupService(IGroupRepository groupRepository)
+    public GroupService(IGroupRepository groupRepository, IUserRepository userRepository)
     {
         _groupRepository = groupRepository;
+        _userRepository = userRepository;
     }
 
     // mentorId Controller'da token'dan (ClaimTypes.NameIdentifier) okunup buraya geliyor -
@@ -33,14 +35,14 @@ public class GroupService : IGroupService
         await _groupRepository.AddAsync(group);
         await _groupRepository.SaveChangesAsync();
 
-        return MapToDto(group);
+        return await MapOneAsync(group);
     }
 
-    public async Task<PagedResultDto<GroupDto>> GetMyGroupsAsync(int mentorId, int page, int pageSize)
+    public async Task<PagedResultDto<GroupDto>> GetMyGroupsAsync(int mentorId, int page, int pageSize, string? search)
     {
         (page, pageSize) = Pagination.Normalize(page, pageSize);
-        var (groups, totalCount) = await _groupRepository.GetPagedByMentorIdAsync(mentorId, page, pageSize);
-        return PagedResultDto<GroupDto>.Create(groups.Select(MapToDto).ToList(), page, pageSize, totalCount);
+        var (groups, totalCount) = await _groupRepository.GetPagedByMentorIdAsync(mentorId, page, pageSize, Pagination.NormalizeSearch(search));
+        return PagedResultDto<GroupDto>.Create(await MapAllAsync(groups), page, pageSize, totalCount);
     }
 
     public async Task<GroupDto> GetGroupByIdAsync(int mentorId, int groupId)
@@ -56,7 +58,7 @@ public class GroupService : IGroupService
             throw new ForbiddenException("Bu grup size ait değil.");
         }
 
-        return MapToDto(group);
+        return await MapOneAsync(group);
     }
 
     public async Task<GroupDto> UpdateGroupNameAsync(int mentorId, int groupId, CreateGroupRequestDto request)
@@ -82,7 +84,7 @@ public class GroupService : IGroupService
         await _groupRepository.UpdateGroupAsync(group);
         await _groupRepository.SaveChangesAsync();
 
-        return MapToDto(group);
+        return await MapOneAsync(group);
     }
 
     public async Task DeleteGroupAsync(int mentorId, int groupId)
@@ -128,23 +130,36 @@ public class GroupService : IGroupService
         group.DeletedAt = null;
         await _groupRepository.SaveChangesAsync();
 
-        return MapToDto(group);
+        return await MapOneAsync(group);
     }
 
-    public async Task<PagedResultDto<GroupDto>> GetAllGroupsAsync(int page, int pageSize)
+    public async Task<PagedResultDto<GroupDto>> GetAllGroupsAsync(int page, int pageSize, string? search)
     {
         (page, pageSize) = Pagination.Normalize(page, pageSize);
-        var (groups, totalCount) = await _groupRepository.GetPagedAllAsync(page, pageSize);
-        return PagedResultDto<GroupDto>.Create(groups.Select(MapToDto).ToList(), page, pageSize, totalCount);
+        var (groups, totalCount) = await _groupRepository.GetPagedAllAsync(page, pageSize, Pagination.NormalizeSearch(search));
+        return PagedResultDto<GroupDto>.Create(await MapAllAsync(groups), page, pageSize, totalCount);
     }
 
-    private static GroupDto MapToDto(Group group)
+    // Mentor adları, grup başına ayrı sorgu atmamak için tek seferde (toplu) getirilir.
+    private async Task<List<GroupDto>> MapAllAsync(List<Group> groups)
+    {
+        var mentors = (await _userRepository.GetByIdsAsync(groups.Select(g => g.MentorId))).ToDictionary(u => u.Id, u => u.FullName);
+        return groups.Select(g => MapToDto(g, mentors)).ToList();
+    }
+
+    private async Task<GroupDto> MapOneAsync(Group group)
+    {
+        return (await MapAllAsync(new List<Group> { group }))[0];
+    }
+
+    private static GroupDto MapToDto(Group group, Dictionary<int, string> mentorNames)
     {
         return new GroupDto
         {
             Id = group.Id,
             Name = group.Name,
             MentorId = group.MentorId,
+            MentorName = mentorNames.GetValueOrDefault(group.MentorId, string.Empty),
             CreatedAt = group.CreatedAt
         };
     }

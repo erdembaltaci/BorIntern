@@ -20,7 +20,7 @@ public class InternshipNoteServiceTests
             .Callback<InternshipNote>(n => capturedNote = n)
             .Returns(Task.CompletedTask);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var request = new CreateNoteRequestDto { Content = "Bugün EF Core öğrendim." };
         var result = await service.CreateNoteAsync(userId: 7, request);
@@ -37,7 +37,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((InternshipNote?)null);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var request = new UpdateNoteRequestDto { Content = "Güncel içerik" };
 
@@ -52,7 +52,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var request = new UpdateNoteRequestDto { Content = "Güncel içerik" };
 
@@ -68,7 +68,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var request = new UpdateNoteRequestDto { Content = "Güncel içerik" };
         var result = await service.UpdateNoteAsync(userId: 1, noteId: 1, request);
@@ -84,7 +84,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.DeleteNoteAsync(userId: 1, noteId: 1));
     }
@@ -97,7 +97,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await service.DeleteNoteAsync(userId: 1, noteId: 1);
 
@@ -113,9 +113,9 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((InternshipNote?)null);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
-        await Assert.ThrowsAsync<NotFoundException>(() => service.GetNoteByIdAsync(userId: 1, noteId: 99));
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetNoteByIdAsync(callerId: 1, noteId: 99));
     }
 
     [Fact]
@@ -126,9 +126,9 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
-        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetNoteByIdAsync(userId: 1, noteId: 1));
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetNoteByIdAsync(callerId: 1, noteId: 1));
     }
 
     [Fact]
@@ -139,9 +139,9 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
-        var result = await service.GetNoteByIdAsync(userId: 1, noteId: 1);
+        var result = await service.GetNoteByIdAsync(callerId: 1, noteId: 1);
 
         Assert.Equal(1, result.Id);
     }
@@ -152,7 +152,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(It.IsAny<int>())).ReturnsAsync((InternshipNote?)null);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<NotFoundException>(() => service.RestoreNoteAsync(userId: 1, noteId: 99));
     }
@@ -165,7 +165,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.RestoreNoteAsync(userId: 1, noteId: 1));
     }
@@ -178,7 +178,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RestoreNoteAsync(userId: 1, noteId: 1));
     }
@@ -191,7 +191,7 @@ public class InternshipNoteServiceTests
         var mockRepo = new Mock<IInternshipNoteRepository>();
         mockRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(note);
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var result = await service.RestoreNoteAsync(userId: 1, noteId: 1);
 
@@ -204,15 +204,15 @@ public class InternshipNoteServiceTests
     public async Task GetMyNotesAsync_SayfaBilgisiVeToplamKayitSayisiDoner()
     {
         var mockRepo = new Mock<IInternshipNoteRepository>();
-        mockRepo.Setup(r => r.GetPagedByUserIdAsync(7, 1, 20)).ReturnsAsync((new List<InternshipNote>
+        mockRepo.Setup(r => r.GetPagedByUserIdAsync(7, 1, 20, null, null)).ReturnsAsync((new List<InternshipNote>
         {
             new() { Id = 1, Content = "Not 1", UserId = 7 },
             new() { Id = 2, Content = "Not 2", UserId = 7 }
         }, 45));
 
-        var service = new InternshipNoteService(mockRepo.Object);
+        var service = new InternshipNoteService(mockRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
-        var result = await service.GetMyNotesAsync(userId: 7, page: 1, pageSize: 20);
+        var result = await service.GetMyNotesAsync(callerId: 7, page: 1, pageSize: 20, status: null, search: null);
 
         Assert.Equal(2, result.Items.Count);
         Assert.Equal(45, result.TotalCount);

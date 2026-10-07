@@ -48,16 +48,16 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("users")]
-    public async Task<IActionResult> GetAllUsers(int page = 1, int pageSize = Pagination.DefaultPageSize)
+    public async Task<IActionResult> GetAllUsers(int page = 1, int pageSize = Pagination.DefaultPageSize, string? search = null)
     {
-        var result = await _userService.GetAllUsersAsync(page, pageSize);
+        var result = await _userService.GetAllUsersAsync(page, pageSize, search);
         return Ok(result);
     }
 
     [HttpGet("users/pending")]
-    public async Task<IActionResult> GetPendingUsers(int page = 1, int pageSize = Pagination.DefaultPageSize)
+    public async Task<IActionResult> GetPendingUsers(int page = 1, int pageSize = Pagination.DefaultPageSize, string? search = null)
     {
-        var result = await _userService.GetPendingUsersAsync(page, pageSize);
+        var result = await _userService.GetPendingUsersAsync(page, pageSize, search);
         return Ok(result);
     }
 
@@ -74,17 +74,17 @@ public class AdminController : ControllerBase
     // Admin, hangi mentor'a ait olursa olsun TÜM grupları görebilir - GroupController'daki
     // "mine" endpoint'inden farklı olarak burada mentor sahiplik filtresi yok, bilerek.
     [HttpGet("groups")]
-    public async Task<IActionResult> GetAllGroups(int page = 1, int pageSize = Pagination.DefaultPageSize)
+    public async Task<IActionResult> GetAllGroups(int page = 1, int pageSize = Pagination.DefaultPageSize, string? search = null)
     {
-        var result = await _groupService.GetAllGroupsAsync(page, pageSize);
+        var result = await _groupService.GetAllGroupsAsync(page, pageSize, search);
         return Ok(result);
     }
 
     // Admin, hangi kullanıcıya atanmış olursa olsun TÜM görevleri görebilir.
     [HttpGet("tasks")]
-    public async Task<IActionResult> GetAllTasks(int page = 1, int pageSize = Pagination.DefaultPageSize)
+    public async Task<IActionResult> GetAllTasks(int page = 1, int pageSize = Pagination.DefaultPageSize, string? search = null)
     {
-        var result = await _taskService.GetAllTasksAsync(page, pageSize);
+        var result = await _taskService.GetAllTasksAsync(page, pageSize, search);
         return Ok(result);
     }
 }

@@ -28,12 +28,14 @@ builder.Services.AddScoped<IGroupMemberRepository, GroupMemberRepository>();
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<IInternshipNoteRepository, InternshipNoteRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IGroupMemberService, GroupMemberService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IInternshipNoteService, InternshipNoteService>();
+builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
 // Arka planda çalışır: süresi dolmuş refresh token'ları periyodik olarak siler.
 builder.Services.AddHostedService<RefreshTokenCleanupService>();
 // Hesap bazlı giriş kilidi sayaçları bellekte tutulur, bu yüzden tüm istekler için TEK örnek (Singleton) gerekir.

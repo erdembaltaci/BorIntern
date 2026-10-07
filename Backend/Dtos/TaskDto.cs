@@ -8,6 +8,9 @@ public class TaskDto
     public string Status { get; set; } = string.Empty;
     public DateTime? DueDate { get; set; }
     public int AssignedUserId { get; set; }
+    // Listelerde "Stajyer #7" yerine ad gösterilebilsin diye (toplu sorguyla doldurulur).
+    public string AssignedUserName { get; set; } = string.Empty;
     public int CreatedByUserId { get; set; }
+    public string CreatedByUserName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }

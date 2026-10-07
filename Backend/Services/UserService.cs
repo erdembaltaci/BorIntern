@@ -44,17 +44,24 @@ public class UserService : IUserService
         return MapToDto(user);
     }
 
-    public async Task<PagedResultDto<UserDto>> GetAllUsersAsync(int page, int pageSize)
+    public async Task<PagedResultDto<UserDto>> GetAllUsersAsync(int page, int pageSize, string? search)
     {
         (page, pageSize) = Pagination.Normalize(page, pageSize);
-        var (users, totalCount) = await _userRepository.GetPagedAsync(page, pageSize);
+        var (users, totalCount) = await _userRepository.GetPagedAsync(page, pageSize, Pagination.NormalizeSearch(search));
         return PagedResultDto<UserDto>.Create(users.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
-    public async Task<PagedResultDto<UserDto>> GetPendingUsersAsync(int page, int pageSize)
+    public async Task<PagedResultDto<UserDto>> GetPendingUsersAsync(int page, int pageSize, string? search)
     {
         (page, pageSize) = Pagination.Normalize(page, pageSize);
-        var (users, totalCount) = await _userRepository.GetPagedByStatusAsync(UserStatus.Pending, page, pageSize);
+        var (users, totalCount) = await _userRepository.GetPagedByStatusAsync(UserStatus.Pending, page, pageSize, Pagination.NormalizeSearch(search));
+        return PagedResultDto<UserDto>.Create(users.Select(MapToDto).ToList(), page, pageSize, totalCount);
+    }
+
+    public async Task<PagedResultDto<UserDto>> SearchActiveInternsAsync(string? search, int page, int pageSize)
+    {
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (users, totalCount) = await _userRepository.GetPagedActiveInternsAsync(search, page, pageSize);
         return PagedResultDto<UserDto>.Create(users.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 

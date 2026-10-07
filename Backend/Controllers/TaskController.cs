@@ -38,11 +38,40 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
+    // ?status=Todo gibi durum filtresi desteklenir (pano sütunları ve liste filtresi için).
     [HttpGet("mine")]
-    public async Task<IActionResult> GetMyTasks(int page = 1, int pageSize = Pagination.DefaultPageSize)
+    public async Task<IActionResult> GetMyTasks(int page = 1, int pageSize = Pagination.DefaultPageSize, string? status = null)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var result = await _taskService.GetMyTasksAsync(userId, page, pageSize);
+        var result = await _taskService.GetMyTasksAsync(userId, page, pageSize, status);
+        return Ok(result);
+    }
+
+    // Kendi görevlerimin durum sayıları ve geciken sayısı (görevleri çekmeden, veritabanında sayılır).
+    [HttpGet("mine/summary")]
+    public async Task<IActionResult> GetMySummary()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _taskService.GetMySummaryAsync(userId);
+        return Ok(result);
+    }
+
+    // Panel için: bitiş tarihi en yakın bitmemiş görevler.
+    [HttpGet("mine/upcoming")]
+    public async Task<IActionResult> GetMyUpcoming(int take = 5)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _taskService.GetMyUpcomingTasksAsync(userId, take);
+        return Ok(result);
+    }
+
+    // Mentor'un kendi atadığı görevlerin listesi (atanan stajyerin değil, atayan mentorun bakışı).
+    [Authorize(Roles = "Mentor")]
+    [HttpGet("created")]
+    public async Task<IActionResult> GetCreatedTasks(int page = 1, int pageSize = Pagination.DefaultPageSize, string? search = null)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _taskService.GetCreatedTasksAsync(mentorId, page, pageSize, search);
         return Ok(result);
     }
 

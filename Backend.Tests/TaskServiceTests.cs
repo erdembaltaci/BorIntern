@@ -20,7 +20,7 @@ public class TaskServiceTests
         var mockGroupMemberRepo = new Mock<IGroupMemberRepository>();
         mockGroupMemberRepo.Setup(r => r.IsUserInMentorGroupAsync(1, 5)).ReturnsAsync(false);
 
-        var service = new TaskService(mockTaskRepo.Object, mockGroupMemberRepo.Object);
+        var service = new TaskService(mockTaskRepo.Object, mockGroupMemberRepo.Object, TestMocks.EmptyUsers());
 
         var request = new CreateTaskRequestDto { Title = "Test Görev", AssignedUserId = 5 };
 
@@ -39,7 +39,7 @@ public class TaskServiceTests
             .Callback<TaskItem>(t => capturedTask = t)
             .Returns(Task.CompletedTask);
 
-        var service = new TaskService(mockTaskRepo.Object, mockGroupMemberRepo.Object);
+        var service = new TaskService(mockTaskRepo.Object, mockGroupMemberRepo.Object, TestMocks.EmptyUsers());
 
         var request = new CreateTaskRequestDto { Title = "Test Görev", AssignedUserId = 5 };
         var result = await service.CreateTaskAsync(mentorId: 1, request);
@@ -56,7 +56,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((TaskItem?)null);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var request = new UpdateTaskStatusRequestDto { Status = "InProgress" };
 
@@ -72,7 +72,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var request = new UpdateTaskStatusRequestDto { Status = "InProgress" };
 
@@ -89,7 +89,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var request = new UpdateTaskStatusRequestDto { Status = "BoyleBirDurumYok" };
 
@@ -105,7 +105,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var request = new UpdateTaskStatusRequestDto { Status = "Completed" };
         var result = await service.UpdateTaskStatusAsync(userId: 1, taskId: 1, request);
@@ -119,7 +119,7 @@ public class TaskServiceTests
         var mockGroupMemberRepo = new Mock<IGroupMemberRepository>();
         mockGroupMemberRepo.Setup(r => r.IsUserInMentorGroupAsync(1, 5)).ReturnsAsync(false);
 
-        var service = new TaskService(new Mock<ITaskRepository>().Object, mockGroupMemberRepo.Object);
+        var service = new TaskService(new Mock<ITaskRepository>().Object, mockGroupMemberRepo.Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ForbiddenException>(
             () => service.GetPerformanceSummaryAsync(mentorId: 1, userId: 5));
@@ -140,7 +140,7 @@ public class TaskServiceTests
             new() { Id = 4, Title = "D", AssignedUserId = 5, CreatedByUserId = 1, Status = TaskStatus.Completed }
         });
 
-        var service = new TaskService(mockTaskRepo.Object, mockGroupMemberRepo.Object);
+        var service = new TaskService(mockTaskRepo.Object, mockGroupMemberRepo.Object, TestMocks.EmptyUsers());
 
         var result = await service.GetPerformanceSummaryAsync(mentorId: 1, userId: 5);
 
@@ -156,7 +156,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((TaskItem?)null);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<NotFoundException>(() => service.GetTaskByIdAsync(callerId: 1, taskId: 99));
     }
@@ -169,7 +169,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.GetTaskByIdAsync(callerId: 1, taskId: 1));
     }
@@ -182,7 +182,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var result = await service.GetTaskByIdAsync(callerId: 5, taskId: 1);
 
@@ -197,7 +197,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var result = await service.GetTaskByIdAsync(callerId: 2, taskId: 1);
 
@@ -210,7 +210,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((TaskItem?)null);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteTaskAsync(mentorId: 1, taskId: 99));
     }
@@ -223,7 +223,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.DeleteTaskAsync(mentorId: 1, taskId: 1));
     }
@@ -236,7 +236,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await service.DeleteTaskAsync(mentorId: 2, taskId: 1);
 
@@ -250,7 +250,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdIncludingDeletedAsync(It.IsAny<int>())).ReturnsAsync((TaskItem?)null);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<NotFoundException>(() => service.RestoreTaskAsync(mentorId: 1, taskId: 99));
     }
@@ -267,7 +267,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.RestoreTaskAsync(mentorId: 1, taskId: 1));
     }
@@ -280,7 +280,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RestoreTaskAsync(mentorId: 2, taskId: 1));
     }
@@ -297,7 +297,7 @@ public class TaskServiceTests
         var mockTaskRepo = new Mock<ITaskRepository>();
         mockTaskRepo.Setup(r => r.GetByIdIncludingDeletedAsync(1)).ReturnsAsync(task);
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
         var result = await service.RestoreTaskAsync(mentorId: 2, taskId: 1);
 
@@ -310,15 +310,15 @@ public class TaskServiceTests
     public async Task GetAllTasksAsync_RepodakiTumGorevleriDtoyaCevirir()
     {
         var mockTaskRepo = new Mock<ITaskRepository>();
-        mockTaskRepo.Setup(r => r.GetPagedAllAsync(1, 20)).ReturnsAsync((new List<TaskItem>
+        mockTaskRepo.Setup(r => r.GetPagedAllAsync(1, 20, null)).ReturnsAsync((new List<TaskItem>
         {
             new() { Id = 1, Title = "A", AssignedUserId = 5, CreatedByUserId = 1 },
             new() { Id = 2, Title = "B", AssignedUserId = 6, CreatedByUserId = 1 }
         }, 2));
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
-        var result = await service.GetAllTasksAsync(page: 1, pageSize: 20);
+        var result = await service.GetAllTasksAsync(page: 1, pageSize: 20, search: null);
 
         Assert.Equal(2, result.Items.Count);
     }
@@ -327,19 +327,154 @@ public class TaskServiceTests
     public async Task GetMyTasksAsync_SayfaBilgisiVeToplamKayitSayisiDoner()
     {
         var mockTaskRepo = new Mock<ITaskRepository>();
-        mockTaskRepo.Setup(r => r.GetPagedByAssignedUserIdAsync(5, 2, 10)).ReturnsAsync((new List<TaskItem>
+        mockTaskRepo.Setup(r => r.GetPagedByAssignedUserIdAsync(5, 2, 10, null)).ReturnsAsync((new List<TaskItem>
         {
             new() { Id = 11, Title = "A", AssignedUserId = 5, CreatedByUserId = 1 }
         }, 11));
 
-        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object);
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
 
-        var result = await service.GetMyTasksAsync(userId: 5, page: 2, pageSize: 10);
+        var result = await service.GetMyTasksAsync(userId: 5, page: 2, pageSize: 10, status: null);
 
         Assert.Single(result.Items);
         Assert.Equal(2, result.Page);
         Assert.Equal(10, result.PageSize);
         Assert.Equal(11, result.TotalCount);
         Assert.Equal(2, result.TotalPages);
+    }
+
+    [Fact]
+    public async Task GetCreatedTasksAsync_MentorunAtadigiGorevlerSayfalanarakDoner()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetPagedByCreatorIdAsync(1, 1, 20, null)).ReturnsAsync((new List<TaskItem>
+        {
+            new() { Id = 10, Title = "Görev A", CreatedByUserId = 1, AssignedUserId = 5 },
+            new() { Id = 11, Title = "Görev B", CreatedByUserId = 1, AssignedUserId = 6 }
+        }, 2));
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
+
+        var result = await service.GetCreatedTasksAsync(mentorId: 1, page: 0, pageSize: -3, search: null);
+
+        Assert.Equal(2, result.Items.Count);
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(20, result.PageSize);
+    }
+
+    [Fact]
+    public async Task GetCreatedTasksAsync_AramaMetniKirpilarakRepositoryeAktarilir()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetPagedByCreatorIdAsync(1, 1, 20, "api")).ReturnsAsync((new List<TaskItem>(), 0));
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
+
+        await service.GetCreatedTasksAsync(mentorId: 1, page: 1, pageSize: 20, search: " api ");
+
+        mockTaskRepo.Verify(r => r.GetPagedByCreatorIdAsync(1, 1, 20, "api"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllTasksAsync_BosAramaFiltresizSayilir()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetPagedAllAsync(1, 20, null)).ReturnsAsync((new List<TaskItem>(), 0));
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
+
+        await service.GetAllTasksAsync(page: 1, pageSize: 20, search: "");
+
+        mockTaskRepo.Verify(r => r.GetPagedAllAsync(1, 20, null), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("Todo", Backend.Entities.TaskStatus.Todo)]
+    [InlineData("InProgress", Backend.Entities.TaskStatus.InProgress)]
+    [InlineData("completed", Backend.Entities.TaskStatus.Completed)]
+    public async Task GetMyTasksAsync_DurumFiltresiRepositoryeAktarilir(string status, Backend.Entities.TaskStatus expected)
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetPagedByAssignedUserIdAsync(5, 1, 10, expected)).ReturnsAsync((new List<TaskItem>(), 0));
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
+
+        await service.GetMyTasksAsync(userId: 5, page: 1, pageSize: 10, status: status);
+
+        mockTaskRepo.Verify(r => r.GetPagedByAssignedUserIdAsync(5, 1, 10, expected), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("Bitmis")]
+    [InlineData("99")]
+    public async Task GetMyTasksAsync_GecersizDurum_InvalidOperationExceptionFirlatir(string status)
+    {
+        var service = new TaskService(new Mock<ITaskRepository>().Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.GetMyTasksAsync(userId: 5, page: 1, pageSize: 10, status: status));
+    }
+
+    [Fact]
+    public async Task GetMySummaryAsync_SayilariVeGecikenleriRepodanAlirToplamiHesaplar()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetStatusCountsAsync(5, DateTime.UtcNow.Date)).ReturnsAsync((2, 3, 4, 1));
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
+
+        var result = await service.GetMySummaryAsync(userId: 5);
+
+        Assert.Equal(9, result.TotalTasks);
+        Assert.Equal(2, result.TodoCount);
+        Assert.Equal(3, result.InProgressCount);
+        Assert.Equal(4, result.CompletedCount);
+        Assert.Equal(1, result.OverdueCount);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(5, 5)]
+    [InlineData(500, 20)]
+    public async Task GetMyUpcomingTasksAsync_AdetSinirlandirilir(int requested, int expectedTake)
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetUpcomingByAssignedUserIdAsync(5, expectedTake)).ReturnsAsync(new List<TaskItem>());
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, TestMocks.EmptyUsers());
+
+        await service.GetMyUpcomingTasksAsync(userId: 5, take: requested);
+
+        mockTaskRepo.Verify(r => r.GetUpcomingByAssignedUserIdAsync(5, expectedTake), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllTasksAsync_AtananVeAtayanKisininAdiDoldurulur()
+    {
+        var mockTaskRepo = new Mock<ITaskRepository>();
+        mockTaskRepo.Setup(r => r.GetPagedAllAsync(1, 20, null)).ReturnsAsync((new List<TaskItem>
+        {
+            new() { Id = 1, Title = "A", AssignedUserId = 5, CreatedByUserId = 9 },
+            new() { Id = 2, Title = "B", AssignedUserId = 6, CreatedByUserId = 9 }
+        }, 2));
+
+        var mockUsers = new Mock<IUserRepository>();
+        mockUsers.Setup(r => r.GetByIdsAsync(It.IsAny<IEnumerable<int>>())).ReturnsAsync(new List<Backend.Entities.User>
+        {
+            new() { Id = 5, FullName = "Elif" },
+            new() { Id = 9, FullName = "Zeynep" }
+            // 6 numaralı kullanıcı bulunamıyor: liste yine de dönmeli, ad boş kalmalı.
+        });
+
+        var service = new TaskService(mockTaskRepo.Object, new Mock<IGroupMemberRepository>().Object, mockUsers.Object);
+
+        var result = await service.GetAllTasksAsync(page: 1, pageSize: 20, search: null);
+
+        Assert.Equal("Elif", result.Items[0].AssignedUserName);
+        Assert.Equal("Zeynep", result.Items[0].CreatedByUserName);
+        Assert.Equal(string.Empty, result.Items[1].AssignedUserName);
+        // Tek toplu sorgu: görev başına ayrı kullanıcı sorgusu atılmamalı.
+        mockUsers.Verify(r => r.GetByIdsAsync(It.IsAny<IEnumerable<int>>()), Times.Once);
+        mockUsers.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
     }
 }

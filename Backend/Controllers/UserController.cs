@@ -28,6 +28,15 @@ public class UserController : ControllerBase
         return Ok(result);
     }
 
+    // Mentor, gruba eklemek için aktif stajyerleri ad/e-posta ile arar (Admin zaten tüm kullanıcıları görebiliyor).
+    [Authorize(Roles = "Mentor")]
+    [HttpGet("interns")]
+    public async Task<IActionResult> SearchInterns(string? search, int page = 1, int pageSize = Pagination.DefaultPageSize)
+    {
+        var result = await _userService.SearchActiveInternsAsync(search, page, pageSize);
+        return Ok(result);
+    }
+
     [HttpPut("me")]
     public async Task<IActionResult> UpdateProfile(UpdateProfileRequestDto request)
     {

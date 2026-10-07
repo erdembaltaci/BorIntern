@@ -29,15 +29,42 @@ public class UserRepository : IUserRepository
         return await _context.Users.AnyAsync(u => u.Email == email);
     }
 
-    public async Task<(List<User> Items, int TotalCount)> GetPagedAsync(int page, int pageSize)
+    public async Task<(List<User> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, string? search)
     {
-        return await _context.Users.ToPagedAsync(page, pageSize);
+        return await WithSearch(_context.Users, search).ToPagedAsync(page, pageSize);
     }
 
     // Admin ekranında "onay bekleyenler" gibi listeler için: duruma göre filtreli sorgu.
-    public async Task<(List<User> Items, int TotalCount)> GetPagedByStatusAsync(UserStatus status, int page, int pageSize)
+    public async Task<(List<User> Items, int TotalCount)> GetPagedByStatusAsync(UserStatus status, int page, int pageSize, string? search)
     {
-        return await _context.Users.Where(u => u.Status == status).ToPagedAsync(page, pageSize);
+        return await WithSearch(_context.Users.Where(u => u.Status == status), search).ToPagedAsync(page, pageSize);
+    }
+
+    // Arama metni varsa ad veya e-postada geçenleri bırakır (büyük/küçük harf duyarsız: SQL Server varsayılan collation).
+    private static IQueryable<User> WithSearch(IQueryable<User> query, string? search)
+    {
+        return string.IsNullOrWhiteSpace(search)
+            ? query
+            : query.Where(u => u.FullName.Contains(search) || u.Email.Contains(search));
+    }
+
+    public async Task<List<User>> GetByIdsAsync(IEnumerable<int> ids)
+    {
+        var idList = ids.Distinct().ToList();
+        return await _context.Users.Where(u => idList.Contains(u.Id)).ToListAsync();
+    }
+
+    public async Task<(List<User> Items, int TotalCount)> GetPagedActiveInternsAsync(string? search, int page, int pageSize)
+    {
+        var query = _context.Users.Where(u => u.Role == UserRole.Intern && u.Status == UserStatus.Active);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(u => u.FullName.Contains(term) || u.Email.Contains(term));
+        }
+
+        return await query.ToPagedAsync(page, pageSize);
     }
 
     public async Task AddAsync(User user)

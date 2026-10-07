@@ -84,19 +84,19 @@ public class UserServiceTests
     public async Task GetPendingUsersAsync_SadecePendingDurumundakileriIster()
     {
         var mockRepo = new Mock<IUserRepository>();
-        mockRepo.Setup(r => r.GetPagedByStatusAsync(UserStatus.Pending, 1, 20))
+        mockRepo.Setup(r => r.GetPagedByStatusAsync(UserStatus.Pending, 1, 20, null))
             .ReturnsAsync((new List<User> { new() { Id = 1, Email = "a@b.com", FullName = "Test" } }, 1));
 
         var service = new UserService(mockRepo.Object);
 
-        var result = await service.GetPendingUsersAsync(page: 1, pageSize: 20);
+        var result = await service.GetPendingUsersAsync(page: 1, pageSize: 20, search: null);
 
         Assert.Single(result.Items);
         // GetPagedAsync'in DEĞİL, GetPagedByStatusAsync(Pending)'in çağrıldığını doğruluyoruz -
         // yani servis gerçekten "filtreli" sorguyu kullanmış, tüm kullanıcıları çekip kendi
         // elemesini yapmamış (performans açısından önemli bir fark).
-        mockRepo.Verify(r => r.GetPagedByStatusAsync(UserStatus.Pending, 1, 20), Times.Once);
-        mockRepo.Verify(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+        mockRepo.Verify(r => r.GetPagedByStatusAsync(UserStatus.Pending, 1, 20, null), Times.Once);
+        mockRepo.Verify(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>()), Times.Never);
     }
 
     [Fact]
@@ -154,14 +154,62 @@ public class UserServiceTests
     public async Task GetAllUsersAsync_GecersizSayfaDegerleriVarsayilanaCekilir()
     {
         var mockRepo = new Mock<IUserRepository>();
-        mockRepo.Setup(r => r.GetPagedAsync(1, 100)).ReturnsAsync((new List<User>(), 0));
+        mockRepo.Setup(r => r.GetPagedAsync(1, 100, null)).ReturnsAsync((new List<User>(), 0));
 
         var service = new UserService(mockRepo.Object);
 
-        var result = await service.GetAllUsersAsync(page: -3, pageSize: 500);
+        var result = await service.GetAllUsersAsync(page: -3, pageSize: 500, search: null);
 
         Assert.Equal(1, result.Page);
         Assert.Equal(100, result.PageSize);
-        mockRepo.Verify(r => r.GetPagedAsync(1, 100), Times.Once);
+        mockRepo.Verify(r => r.GetPagedAsync(1, 100, null), Times.Once);
+    }
+
+    [Fact]
+    public async Task SearchActiveInternsAsync_AramaMetniVeSayfalamaRepositoryeAktarilir()
+    {
+        var mockRepo = new Mock<IUserRepository>();
+        mockRepo.Setup(r => r.GetPagedActiveInternsAsync("ali", 1, 20)).ReturnsAsync((new List<User>
+        {
+            new() { Id = 3, FullName = "Ali Veli", Email = "ali@mail.com", Role = UserRole.Intern, Status = UserStatus.Active }
+        }, 1));
+
+        var service = new UserService(mockRepo.Object);
+
+        // page=0 ve pageSize=0 geçersiz: Normalize ile 1 ve 20'ye çekilmeli.
+        var result = await service.SearchActiveInternsAsync("ali", page: 0, pageSize: 0);
+
+        Assert.Single(result.Items);
+        Assert.Equal("Ali Veli", result.Items[0].FullName);
+        Assert.Equal("Intern", result.Items[0].Role);
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal(1, result.Page);
+        Assert.Equal(20, result.PageSize);
+    }
+
+    [Fact]
+    public async Task GetAllUsersAsync_AramaMetniKirpilarakRepositoryeAktarilir()
+    {
+        var mockRepo = new Mock<IUserRepository>();
+        mockRepo.Setup(r => r.GetPagedAsync(1, 20, "ali")).ReturnsAsync((new List<User>(), 0));
+
+        var service = new UserService(mockRepo.Object);
+
+        await service.GetAllUsersAsync(page: 1, pageSize: 20, search: "  ali ");
+
+        mockRepo.Verify(r => r.GetPagedAsync(1, 20, "ali"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPendingUsersAsync_BosAramaFiltresizSayilir()
+    {
+        var mockRepo = new Mock<IUserRepository>();
+        mockRepo.Setup(r => r.GetPagedByStatusAsync(UserStatus.Pending, 1, 20, null)).ReturnsAsync((new List<User>(), 0));
+
+        var service = new UserService(mockRepo.Object);
+
+        await service.GetPendingUsersAsync(page: 1, pageSize: 20, search: "   ");
+
+        mockRepo.Verify(r => r.GetPagedByStatusAsync(UserStatus.Pending, 1, 20, null), Times.Once);
     }
 }
