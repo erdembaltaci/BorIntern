@@ -37,6 +37,16 @@ public class UserController : ControllerBase
         return Ok(result);
     }
 
+    // Mentor, SADECE kendi gruplarındaki stajyerleri arar (görevi başka stajyere devretmek için).
+    [Authorize(Roles = "Mentor")]
+    [HttpGet("my-interns")]
+    public async Task<IActionResult> SearchMyInterns(string? search, int page = 1, int pageSize = Pagination.DefaultPageSize)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _userService.SearchMyInternsAsync(mentorId, search, page, pageSize);
+        return Ok(result);
+    }
+
     [HttpPut("me")]
     public async Task<IActionResult> UpdateProfile(UpdateProfileRequestDto request)
     {

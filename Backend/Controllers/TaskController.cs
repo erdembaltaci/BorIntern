@@ -84,6 +84,16 @@ public class TaskController : ControllerBase
         return Ok(result);
     }
 
+    // Sadece görevi oluşturan mentor düzenleyebilir (sahiplik Service'te denetlenir).
+    [Authorize(Roles = "Mentor")]
+    [HttpPut("{taskId}")]
+    public async Task<IActionResult> UpdateTask(int taskId, UpdateTaskRequestDto request)
+    {
+        var mentorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _taskService.UpdateTaskAsync(mentorId, taskId, request);
+        return Ok(result);
+    }
+
     // Sadece görevi oluşturan mentor silebilir - soft delete.
     [Authorize(Roles = "Mentor")]
     [HttpDelete("{taskId}")]

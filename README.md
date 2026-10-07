@@ -38,7 +38,7 @@ UPDATE Users SET Role = 2, Status = 1 WHERE Email = 'ornek@mail.com';
 
 **Veritabanını başka bir sunucuya taşımak** kod değişikliği gerektirmez: yeni sunucuda `dotnet ef database update` çalıştır (veri de gerekiyorsa `BACKUP`/`RESTORE`), sonra `ConnectionStrings:DefaultConnection` değerini yeni adresle güncelle. Production'da aynı anahtar ortam değişkeninden okunur: `ConnectionStrings__DefaultConnection`.
 
-## API Uç Noktaları (49)
+## API Uç Noktaları (51)
 
 Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri (`/groups/mine`, `/tasks/created`, `/admin/users`, `/admin/users/pending`, `/admin/groups`, `/admin/tasks`) ayrıca `?search=` ile sunucu tarafında aranır: kullanıcıda ad/e-posta, grupta grup adı (admin için mentor adı da), görevde başlık/açıklama/stajyer ve mentor adı. Yetki (rol) kontrolü `[Authorize]` ile, sahiplik kontrolü (kayıt sahibi/ilgili mentor olma şartı) serviste yapılır.
 
@@ -53,6 +53,7 @@ Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri
 | `GET /api/users/me` | Giriş yapmış herkes | Kendi profilini görür |
 | `PUT /api/users/me` | Giriş yapmış herkes | Kendi adını günceller |
 | `GET /api/users/interns?search=` | Mentor | Aktif stajyerleri ad/e-posta ile arar (gruba eklemek için) |
+| `GET /api/users/my-interns?search=` | Mentor | SADECE kendi gruplarındaki aktif stajyerler (görev devri seçicisi) |
 | **Admin** | | |
 | `GET /api/admin/users` | Admin | Tüm kullanıcılar |
 | `GET /api/admin/users/pending` | Admin | Onay bekleyenler (Pending) |
@@ -80,6 +81,7 @@ Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri
 | `GET /api/tasks/created` | Mentor | Kendi atadığı görevler |
 | `GET /api/tasks/{id}` | Atanan stajyer veya oluşturan mentor | Tekil görev |
 | `PUT /api/tasks/{id}/status` | Atanan stajyer | Durumu günceller (Todo/InProgress/Completed) |
+| `PUT /api/tasks/{id}` | Oluşturan mentor | Başlık/açıklama/tarih düzenler; başka stajyere devreder (yeni stajyer mentorun grubunda olmalı, durum Todo'ya döner) |
 | `DELETE /api/tasks/{id}` | Oluşturan mentor | Soft delete |
 | `POST /api/tasks/{id}/restore` | Oluşturan mentor | Geri getirir |
 | `GET /api/tasks/summary/{userId}` | Mentor (kendi grubundaki stajyer) | Durum sayıları özeti |
@@ -360,7 +362,7 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 - **Task:** oluşturma/durum güncelleme/listeleme/tekil görüntüleme/silme(soft)/restore/performans özeti, Admin tüm görevleri görebilir
 - **InternshipNote:** ekleme/listeleme/tekil görüntüleme/güncelleme/silme(soft)/restore
 
-**Test:** `Backend.Tests` içinde 204 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
+**Test:** `Backend.Tests` içinde 210 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
 
 **Frontend:** `Frontend/` klasöründe Angular arayüzü var (giriş/kayıt + "beni hatırla", rol bazlı panel, sürükle-bırak görev panosu, onay akışlı staj defteri + PDF çıktı, mentor defter onayları, gruplar, grup duyuruları, admin ekranları, her listede arama; açık/koyu tema, mobil uyumlu). Hiçbir liste "tüm kayıtları çekmez": her şey sunucudan 10'arlı sayfalarla gelir. Çalıştırma: backend `dotnet run`, sonra `cd Frontend && npm install && npm start` (http://localhost:4200). Backend adresi `Frontend/src/app/core/config.ts` içinde.
 

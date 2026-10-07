@@ -477,4 +477,93 @@ public class TaskServiceTests
         mockUsers.Verify(r => r.GetByIdsAsync(It.IsAny<IEnumerable<int>>()), Times.Once);
         mockUsers.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
     }
+
+    // ---------------------------------------------------------------- görev düzenleme (mentor)
+
+    private static (TaskService Service, Mock<ITaskRepository> Tasks, Mock<IGroupMemberRepository> Members) BuildEditable(
+        TaskItem? task, int taskId = 10)
+    {
+        var tasks = new Mock<ITaskRepository>();
+        tasks.Setup(r => r.GetByIdAsync(taskId)).ReturnsAsync(task);
+        var members = new Mock<IGroupMemberRepository>();
+        return (new TaskService(tasks.Object, members.Object, TestMocks.EmptyUsers()), tasks, members);
+    }
+
+    private static UpdateTaskRequestDto EditRequest(int assignedTo = 5) => new()
+    {
+        Title = "  Yeni başlık  ",
+        Description = "  Yeni açıklama  ",
+        DueDate = new DateTime(2030, 1, 15),
+        AssignedUserId = assignedTo
+    };
+
+    [Fact]
+    public async Task UpdateTaskAsync_GorevYoksa_NotFoundExceptionFirlatir()
+    {
+        var t = BuildEditable(null);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => t.Service.UpdateTaskAsync(mentorId: 1, taskId: 10, EditRequest()));
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_BaskaMentorunGorevi_ForbiddenExceptionFirlatir()
+    {
+        var t = BuildEditable(new TaskItem { Id = 10, CreatedByUserId = 99, AssignedUserId = 5 });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => t.Service.UpdateTaskAsync(mentorId: 1, taskId: 10, EditRequest()));
+        t.Tasks.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_AyniStajyer_BilgileriKirparakGunceller_DurumKorunur()
+    {
+        var task = new TaskItem
+        {
+            Id = 10, CreatedByUserId = 1, AssignedUserId = 5, Title = "Eski", Description = "Eski",
+            Status = Backend.Entities.TaskStatus.InProgress
+        };
+        var t = BuildEditable(task);
+
+        var result = await t.Service.UpdateTaskAsync(mentorId: 1, taskId: 10, EditRequest(assignedTo: 5));
+
+        Assert.Equal("Yeni başlık", task.Title);
+        Assert.Equal("Yeni açıklama", task.Description);
+        Assert.Equal(new DateTime(2030, 1, 15), task.DueDate);
+        // Devir yok: stajyerin kendi ilerlettiği durum bozulmamalı ve grup kontrolü yapılmamalı.
+        Assert.Equal(Backend.Entities.TaskStatus.InProgress, task.Status);
+        Assert.Equal("InProgress", result.Status);
+        t.Members.Verify(r => r.IsUserInMentorGroupAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+        t.Tasks.Verify(r => r.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_YeniStajyerMentorunGrubundaDegilse_ForbiddenExceptionFirlatir()
+    {
+        var task = new TaskItem { Id = 10, CreatedByUserId = 1, AssignedUserId = 5, Title = "Eski" };
+        var t = BuildEditable(task);
+        t.Members.Setup(r => r.IsUserInMentorGroupAsync(1, 8)).ReturnsAsync(false);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => t.Service.UpdateTaskAsync(mentorId: 1, taskId: 10, EditRequest(assignedTo: 8)));
+        Assert.Equal(5, task.AssignedUserId); // devir olmadı
+        Assert.Equal("Eski", task.Title);     // hiçbir alan yarım güncellenmedi
+        t.Tasks.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateTaskAsync_Devir_YeniStajyereGecerVeDurumTodoyaDoner()
+    {
+        var task = new TaskItem
+        {
+            Id = 10, CreatedByUserId = 1, AssignedUserId = 5, Status = Backend.Entities.TaskStatus.Completed
+        };
+        var t = BuildEditable(task);
+        t.Members.Setup(r => r.IsUserInMentorGroupAsync(1, 8)).ReturnsAsync(true);
+
+        var result = await t.Service.UpdateTaskAsync(mentorId: 1, taskId: 10, EditRequest(assignedTo: 8));
+
+        Assert.Equal(8, task.AssignedUserId);
+        Assert.Equal(Backend.Entities.TaskStatus.Todo, task.Status); // yeni stajyer sıfırdan başlar
+        Assert.Equal(8, result.AssignedUserId);
+        Assert.Equal("Todo", result.Status);
+    }
 }

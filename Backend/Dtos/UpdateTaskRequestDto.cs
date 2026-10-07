@@ -2,7 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Dtos;
 
-public class CreateTaskRequestDto
+// Mentorun, atadığı görevin bilgilerini düzenlemesi. Durum (Todo/InProgress/Completed) bu istekle DEĞİŞMEZ:
+// durumu sadece görevin sahibi olan stajyer değiştirir. Tek istisna: görev başka stajyere devredilirse durum Todo'ya döner.
+public class UpdateTaskRequestDto
 {
     [Required(ErrorMessage = "Başlık zorunludur.")]
     [MinLength(2, ErrorMessage = "Başlık en az 2 karakter olmalı.")]
@@ -14,6 +16,7 @@ public class CreateTaskRequestDto
 
     public DateTime? DueDate { get; set; }
 
+    // Mevcut atananla aynıysa devir yapılmaz; farklıysa yeni stajyer mentorun kendi grubunda olmalı.
     [Range(1, int.MaxValue, ErrorMessage = "Geçerli bir kullanıcı Id'si girin.")]
     public int AssignedUserId { get; set; }
 }

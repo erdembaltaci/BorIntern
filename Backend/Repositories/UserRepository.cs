@@ -67,6 +67,16 @@ public class UserRepository : IUserRepository
         return await query.ToPagedAsync(page, pageSize);
     }
 
+    public async Task<(List<User> Items, int TotalCount)> GetPagedMentorInternsAsync(int mentorId, string? search, int page, int pageSize)
+    {
+        // Groups ve GroupMembers query filter'ları silinmiş (soft delete) grup/üyelikleri zaten gizler.
+        var groupIds = _context.Groups.Where(g => g.MentorId == mentorId).Select(g => g.Id);
+        var internIds = _context.GroupMembers.Where(gm => groupIds.Contains(gm.GroupId)).Select(gm => gm.UserId);
+
+        var query = _context.Users.Where(u => internIds.Contains(u.Id) && u.Status == UserStatus.Active);
+        return await WithSearch(query, search).ToPagedAsync(page, pageSize);
+    }
+
     public async Task AddAsync(User user)
     {
         await _context.Users.AddAsync(user);

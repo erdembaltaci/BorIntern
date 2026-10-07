@@ -73,6 +73,10 @@ export class ApiService {
     return this.delete(`/groups/${groupId}/members/${userId}`);
   }
 
+  /** Mentor: SADECE kendi gruplarındaki aktif stajyerleri arar (görev devri için). */
+  searchMyInterns(search: string, page: number, pageSize: number): Promise<Paged<User>> {
+    return this.get('/users/my-interns', this.paging(page, pageSize, search));
+  }
   /** Mentor: gruba eklemek için aktif stajyerleri ad/e-posta ile arar. */
   searchInterns(search: string, page: number, pageSize: number): Promise<Paged<User>> {
     return this.get('/users/interns', this.paging(page, pageSize).set('search', search));
@@ -107,6 +111,10 @@ export class ApiService {
   }
   restoreTask(taskId: number): Promise<TaskItem> {
     return this.post(`/tasks/${taskId}/restore`, {});
+  }
+  /** Mentor: atadığı görevin bilgilerini düzenler; assignedUserId değişirse görev başka stajyere devredilir. */
+  updateTask(taskId: number, request: CreateTaskRequest): Promise<TaskItem> {
+    return this.put(`/tasks/${taskId}`, request);
   }
   taskSummary(userId: number): Promise<TaskSummary> {
     return this.get(`/tasks/summary/${userId}`);

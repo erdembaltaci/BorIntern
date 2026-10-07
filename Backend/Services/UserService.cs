@@ -65,6 +65,13 @@ public class UserService : IUserService
         return PagedResultDto<UserDto>.Create(users.Select(MapToDto).ToList(), page, pageSize, totalCount);
     }
 
+    public async Task<PagedResultDto<UserDto>> SearchMyInternsAsync(int mentorId, string? search, int page, int pageSize)
+    {
+        (page, pageSize) = Pagination.Normalize(page, pageSize);
+        var (users, totalCount) = await _userRepository.GetPagedMentorInternsAsync(mentorId, Pagination.NormalizeSearch(search), page, pageSize);
+        return PagedResultDto<UserDto>.Create(users.Select(MapToDto).ToList(), page, pageSize, totalCount);
+    }
+
     public async Task<UserDto> ChangeUserRoleAsync(int adminId, int userId, UpdateUserRoleRequestDto request)
     {
         // Admin kendi rolünü düşürüp sistemi yönetimsiz bırakmasın.

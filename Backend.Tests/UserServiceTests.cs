@@ -212,4 +212,23 @@ public class UserServiceTests
 
         mockRepo.Verify(r => r.GetPagedByStatusAsync(UserStatus.Pending, 1, 20, null), Times.Once);
     }
+
+    [Fact]
+    public async Task SearchMyInternsAsync_MentorIdAramaVeSayfalamaRepositoryeAktarilir()
+    {
+        var mockRepo = new Mock<IUserRepository>();
+        mockRepo.Setup(r => r.GetPagedMentorInternsAsync(4, "elif", 1, 20)).ReturnsAsync((new List<User>
+        {
+            new() { Id = 7, FullName = "Elif Saraç", Email = "elif@mail.com", Role = UserRole.Intern, Status = UserStatus.Active }
+        }, 1));
+
+        var service = new UserService(mockRepo.Object);
+
+        // page=0/pageSize=0 geçersiz (Normalize ile 1/20), arama metni kırpılır.
+        var result = await service.SearchMyInternsAsync(mentorId: 4, search: "  elif ", page: 0, pageSize: 0);
+
+        Assert.Single(result.Items);
+        Assert.Equal("Elif Saraç", result.Items[0].FullName);
+        mockRepo.Verify(r => r.GetPagedMentorInternsAsync(4, "elif", 1, 20), Times.Once);
+    }
 }

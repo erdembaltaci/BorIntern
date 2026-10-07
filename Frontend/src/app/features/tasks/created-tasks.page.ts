@@ -1,25 +1,29 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { PAGE_SIZE } from '../../core/config';
 import { ConfirmService } from '../../core/confirm.service';
-import { formatDay, isPastDay } from '../../core/date.util';
+import { formatDay, fromInputDay, isPastDay, toInputDay } from '../../core/date.util';
 import { errorMessage } from '../../core/error.util';
 import { TaskItem } from '../../core/models';
 import { ToastService } from '../../core/toast.service';
 import { Badge } from '../../shared/badge';
 import { EmptyState } from '../../shared/empty-state';
 import { Icon } from '../../shared/icon';
+import { InternPicker, PickedIntern } from '../../shared/intern-picker';
+import { Modal } from '../../shared/modal';
 import { Pager } from '../../shared/pager';
 import { SearchBox } from '../../shared/search-box';
 
 /**
- * Mentorun atadığı görevlerin listesi: kimin, hangi durumda olduğunu görür, gerekirse siler (geri alınabilir).
+ * Mentorun atadığı görevlerin listesi: kimin, hangi durumda olduğunu görür; görevi düzenler, başka stajyere devreder
+ * ya da siler (geri alınabilir).
  * Stajyerin adı görevle birlikte sunucudan gelir (tek toplu sorgu), ayrıca bir yükleme gerekmez.
  */
 @Component({
   selector: 'app-created-tasks-page',
-  imports: [RouterLink, Icon, Badge, Pager, EmptyState, SearchBox],
+  imports: [ReactiveFormsModule, RouterLink, Icon, Badge, Modal, InternPicker, Pager, EmptyState, SearchBox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -84,9 +88,14 @@ import { SearchBox } from '../../shared/search-box';
                     {{ formatDay(task.dueDate) }}
                   </td>
                   <td data-label="İşlem">
-                    <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Görevi sil" title="Sil" (click)="remove(task)">
-                      <app-icon name="trash" />
-                    </button>
+                    <div class="row actions">
+                      <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Görevi düzenle" title="Düzenle" (click)="openEdit(task)">
+                        <app-icon name="edit" />
+                      </button>
+                      <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Görevi sil" title="Sil" (click)="remove(task)">
+                        <app-icon name="trash" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               }
@@ -96,8 +105,67 @@ import { SearchBox } from '../../shared/search-box';
         <app-pager [page]="page()" [totalPages]="totalPages()" (pageChange)="load($event)" />
       }
     </div>
+
+    @if (editing(); as task) {
+      <app-modal title="Görevi düzenle" (closed)="closeEdit()">
+        <form class="stack" [formGroup]="form" (submit)="$event.preventDefault(); saveEdit()" novalidate>
+          <div class="field">
+            <label for="editTitle">Başlık</label>
+            <input
+              id="editTitle"
+              class="input"
+              type="text"
+              formControlName="title"
+              maxlength="150"
+              [class.invalid]="form.controls.title.touched && form.controls.title.invalid"
+            />
+            @if (form.controls.title.touched && form.controls.title.invalid) {
+              <span class="field-error">Başlık en az 2 karakter olmalı.</span>
+            }
+          </div>
+
+          <div class="field">
+            <label for="editDesc">Açıklama <span class="muted">(isteğe bağlı)</span></label>
+            <textarea id="editDesc" class="input" rows="3" formControlName="description" maxlength="2000"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="editDue">Bitiş tarihi <span class="muted">(isteğe bağlı)</span></label>
+            <input id="editDue" class="input" type="date" formControlName="dueDate" />
+          </div>
+
+          <div class="field">
+            <span class="label">Stajyer</span>
+            <app-intern-picker [search]="searchMyInterns" [selected]="assignee()" (picked)="assignee.set($event)" />
+            @if (assignee() && assignee()!.id !== task.assignedUserId) {
+              <div class="alert alert-warning">
+                <app-icon name="alert-circle" />
+                <span>Görev {{ assignee()!.name }} adlı stajyere devredilecek ve durumu "Yapılacak"a dönecek.</span>
+              </div>
+            }
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeEdit()">Vazgeç</button>
+            <button type="submit" class="btn btn-primary" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> }
+              Kaydet
+            </button>
+          </div>
+        </form>
+      </app-modal>
+    }
   `,
   styles: `
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+    .actions {
+      gap: 0.1rem;
+    }
     .task-cell {
       display: flex;
       flex-direction: column;
@@ -134,6 +202,7 @@ export class CreatedTasksPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly fb = inject(FormBuilder);
 
   /** Arama kutusundaki metin (boş = filtre yok). Değişince liste 1. sayfadan yeniden yüklenir. */
   protected readonly search = signal('');
@@ -146,6 +215,19 @@ export class CreatedTasksPage implements OnInit {
   protected readonly totalCount = signal(0);
   protected readonly formatDay = formatDay;
   protected readonly isPastDay = isPastDay;
+
+  // Düzenleme diyaloğu: null = kapalı, TaskItem = o görev düzenleniyor
+  protected readonly editing = signal<TaskItem | null>(null);
+  protected readonly saving = signal(false);
+  protected readonly assignee = signal<PickedIntern | null>(null);
+  protected readonly form = this.fb.nonNullable.group({
+    title: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(150)]],
+    description: ['', Validators.maxLength(2000)],
+    dueDate: [''],
+  });
+
+  /** Devir için stajyer arama kaynağı: yalnızca mentorun kendi gruplarındaki stajyerler, en fazla 8 sonuç. */
+  protected readonly searchMyInterns = async (term: string) => (await this.api.searchMyInterns(term, 1, 8)).items;
 
   ngOnInit(): void {
     void this.load(1);
@@ -173,6 +255,44 @@ export class CreatedTasksPage implements OnInit {
       this.error.set(errorMessage(err));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  protected openEdit(task: TaskItem): void {
+    this.form.reset({ title: task.title, description: task.description, dueDate: toInputDay(task.dueDate) });
+    this.assignee.set({ id: task.assignedUserId, name: task.assignedUserName || `Stajyer #${task.assignedUserId}` });
+    this.editing.set(task);
+  }
+
+  protected closeEdit(): void {
+    this.editing.set(null);
+  }
+
+  protected async saveEdit(): Promise<void> {
+    const task = this.editing();
+    const assignee = this.assignee();
+    if (this.form.invalid || task === null || assignee === null) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    this.saving.set(true);
+    try {
+      const value = this.form.getRawValue();
+      const reassigned = assignee.id !== task.assignedUserId;
+      await this.api.updateTask(task.id, {
+        title: value.title.trim(),
+        description: value.description.trim(),
+        dueDate: fromInputDay(value.dueDate),
+        assignedUserId: assignee.id,
+      });
+      this.toast.success(reassigned ? `Görev ${assignee.name} adlı stajyere devredildi.` : 'Görev güncellendi.');
+      this.editing.set(null);
+      await this.load(this.page());
+    } catch (err) {
+      this.toast.error(errorMessage(err));
+    } finally {
+      this.saving.set(false);
     }
   }
 

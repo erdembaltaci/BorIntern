@@ -19,6 +19,10 @@ public interface ITaskService
     // Tekil görev görüntüleme: sadece görevin sahibi (atanan stajyer) ya da onu oluşturan mentor.
     Task<TaskDto> GetTaskByIdAsync(int callerId, int taskId);
 
+    // Sadece görevi OLUŞTURAN mentor düzenleyebilir. Başka stajyere devredilirse yeni stajyer mentorun grubunda olmalı
+    // ve görev durumu Todo'ya döner.
+    Task<TaskDto> UpdateTaskAsync(int mentorId, int taskId, UpdateTaskRequestDto request);
+
     // Sadece görevi OLUŞTURAN mentor silebilir/geri getirebilir.
     Task DeleteTaskAsync(int mentorId, int taskId);
     Task<TaskDto> RestoreTaskAsync(int mentorId, int taskId);

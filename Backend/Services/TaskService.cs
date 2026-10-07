@@ -129,6 +129,43 @@ public class TaskService : ITaskService
         return await MapOneAsync(task);
     }
 
+    public async Task<TaskDto> UpdateTaskAsync(int mentorId, int taskId, UpdateTaskRequestDto request)
+    {
+        var task = await _taskRepository.GetByIdAsync(taskId);
+        if (task == null)
+        {
+            throw new NotFoundException("Görev bulunamadı.");
+        }
+
+        // Sadece görevi atayan mentor düzenleyebilir (silme/geri getirmeyle aynı kural).
+        if (task.CreatedByUserId != mentorId)
+        {
+            throw new ForbiddenException("Bu görevi düzenleme yetkiniz yok.");
+        }
+
+        // Devir: yeni stajyer de mentorun kendi grubunda olmalı (görev atamadaki kuralın aynısı).
+        bool reassigned = request.AssignedUserId != task.AssignedUserId;
+        if (reassigned)
+        {
+            bool isInMentorGroup = await _groupMemberRepository.IsUserInMentorGroupAsync(mentorId, request.AssignedUserId);
+            if (!isInMentorGroup)
+            {
+                throw new ForbiddenException("Bu kullanıcı sizin grubunuzda değil.");
+            }
+
+            task.AssignedUserId = request.AssignedUserId;
+            // Yeni stajyer işe sıfırdan başlar: önceki kişinin "devam ediyor/tamamlandı" durumu ona geçmez.
+            task.Status = TaskStatus.Todo;
+        }
+
+        task.Title = request.Title.Trim();
+        task.Description = (request.Description ?? string.Empty).Trim();
+        task.DueDate = request.DueDate;
+        await _taskRepository.SaveChangesAsync();
+
+        return await MapOneAsync(task);
+    }
+
     public async Task DeleteTaskAsync(int mentorId, int taskId)
     {
         var task = await _taskRepository.GetByIdAsync(taskId);
