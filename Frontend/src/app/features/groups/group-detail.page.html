@@ -1,0 +1,246 @@
+<div class="page">
+  <a routerLink="/gruplar" class="back"><app-icon name="arrow-left" [size]="16" /> Gruplarım</a>
+
+  @if (loading()) {
+    <div class="skeleton" style="height: 64px; max-width: 420px"></div>
+    <div class="skeleton" style="height: 280px"></div>
+  } @else if (error(); as message) {
+    <div class="card">
+      <app-empty-state icon="alert-circle" title="Grup açılamadı" [text]="message">
+        <a routerLink="/gruplar" class="btn btn-primary">Gruplarıma dön</a>
+      </app-empty-state>
+    </div>
+  } @else if (group(); as g) {
+    <header class="page-header">
+      <div>
+        <h1>{{ g.name }}</h1>
+        <p>Oluşturulma: {{ formatDateTime(g.createdAt) }} · {{ totalCount() }} üye</p>
+      </div>
+    </header>
+
+    <!-- Üye ekle: ad veya e-posta ile ara -->
+    <section class="card card-pad add-member">
+      <div class="field">
+        <label for="memberSearch">Stajyer ekle</label>
+        <div class="search-wrap">
+          <input
+            id="memberSearch"
+            class="input"
+            type="search"
+            autocomplete="off"
+            [formControl]="searchControl"
+            placeholder="Stajyerin adını veya e-postasını yaz…"
+            (focus)="searchOpen.set(true)"
+          />
+          @if (searching()) {
+            <span class="spinner search-spinner"></span>
+          }
+        </div>
+        <span class="hint">Sadece yönetici tarafından onaylanmış (aktif) stajyerler aranır.</span>
+      </div>
+
+      @if (searchOpen()) {
+        <div class="results" role="listbox" aria-label="Stajyer arama sonuçları">
+          @if (candidates().length === 0 && !searching()) {
+            <p class="muted small results-empty">Eklenebilecek stajyer bulunamadı.</p>
+          }
+          @for (candidate of candidates(); track candidate.id) {
+            <div class="result">
+              <span class="avatar">{{ initials(candidate.fullName) }}</span>
+              <div class="result-text">
+                <strong>{{ candidate.fullName }}</strong>
+                <span class="muted small">{{ candidate.email }}</span>
+              </div>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                [disabled]="addingUserId() !== null"
+                (click)="addIntern(candidate)"
+              >
+                @if (addingUserId() === candidate.id) { <span class="spinner"></span> } @else { <app-icon name="user-plus" [size]="15" /> }
+                Ekle
+              </button>
+            </div>
+          }
+          <button type="button" class="btn btn-ghost btn-sm close-results" (click)="searchOpen.set(false)">Listeyi kapat</button>
+        </div>
+      }
+    </section>
+
+    <!-- Üyeler -->
+    <section class="card">
+      @if (members().length === 0) {
+        <app-empty-state
+          icon="users"
+          title="Bu grupta henüz üye yok"
+          text="Yukarıdaki arama kutusundan bir stajyer bulup gruba ekleyebilirsin."
+        />
+      } @else {
+        <ul class="members" [class.dim]="membersLoading()">
+          @for (member of members(); track member.id) {
+            <li class="member">
+              <span class="avatar">{{ initials(member.fullName) }}</span>
+
+              <div class="member-info">
+                <strong>{{ member.fullName || 'Stajyer #' + member.userId }}</strong>
+                <span class="muted small">{{ member.email }} · Katıldı: {{ formatDateTime(member.joinedAt) }}</span>
+              </div>
+
+              <div class="member-progress">
+                @let summary = summaries()[member.userId];
+                @if (summary === undefined) {
+                  <div class="skeleton" style="height: 38px"></div>
+                } @else if (summary === null) {
+                  <span class="muted small">Özet yüklenemedi</span>
+                } @else if (summary.totalTasks === 0) {
+                  <span class="muted small">Henüz görev atanmadı</span>
+                } @else {
+                  <div class="progress"><span [style.width.%]="percent(summary)"></span></div>
+                  <span class="small muted">
+                    {{ summary.completedCount }}/{{ summary.totalTasks }} tamamlandı ·
+                    {{ summary.inProgressCount }} devam ·
+                    {{ summary.todoCount }} bekliyor
+                  </span>
+                }
+              </div>
+
+              <div class="member-actions">
+                <button type="button" class="btn btn-secondary btn-sm" (click)="openTaskDialog(member)">
+                  <app-icon name="plus" [size]="15" /> Görev ata
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-icon btn-sm"
+                  aria-label="Üyeyi gruptan çıkar"
+                  title="Gruptan çıkar"
+                  (click)="removeMember(member)"
+                >
+                  <app-icon name="trash" />
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <app-pager [page]="page()" [totalPages]="totalPages()" (pageChange)="loadMembers($event)" />
+
+    <!-- Duyurular -->
+    <section class="card card-pad announcements">
+      <div class="row-between">
+        <h2><app-icon name="megaphone" [size]="20" /> Grup duyuruları</h2>
+        <span class="muted small">Gruptaki tüm stajyerler görür</span>
+      </div>
+
+      <form class="stack" [formGroup]="announcementForm" (submit)="$event.preventDefault(); sendAnnouncement()" novalidate>
+        <div class="field">
+          <label for="annTitle">Başlık</label>
+          <input
+            id="annTitle"
+            class="input"
+            type="text"
+            formControlName="title"
+            maxlength="150"
+            placeholder="Örn. Cuma günü sunum var"
+            [class.invalid]="announcementForm.controls.title.touched && announcementForm.controls.title.invalid"
+          />
+          @if (announcementForm.controls.title.touched && announcementForm.controls.title.invalid) {
+            <span class="field-error">Başlık en az 2 karakter olmalı.</span>
+          }
+        </div>
+        <div class="field">
+          <label for="annContent">Duyuru metni</label>
+          <textarea
+            id="annContent"
+            class="input"
+            rows="3"
+            formControlName="content"
+            maxlength="2000"
+            placeholder="Grubuna iletmek istediğin mesajı yaz…"
+            [class.invalid]="announcementForm.controls.content.touched && announcementForm.controls.content.invalid"
+          ></textarea>
+          <div class="row-between">
+            @if (announcementForm.controls.content.touched && announcementForm.controls.content.invalid) {
+              <span class="field-error">Duyuru metni boş olamaz.</span>
+            } @else {
+              <span></span>
+            }
+            <span class="hint">{{ announcementForm.controls.content.value.length }} / 2000</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary" [disabled]="postingAnnouncement()">
+            @if (postingAnnouncement()) { <span class="spinner"></span> } @else { <app-icon name="megaphone" [size]="18" /> }
+            Duyuruyu gönder
+          </button>
+        </div>
+      </form>
+
+      @if (announcements().length === 0) {
+        <p class="muted small empty-note">Bu gruba henüz duyuru gönderilmedi.</p>
+      } @else {
+        <ul class="ann-list" [class.dim]="annLoading()">
+          @for (item of announcements(); track item.id) {
+            <li class="ann">
+              <div class="ann-head">
+                <strong>{{ item.title }}</strong>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-icon btn-sm"
+                  aria-label="Duyuruyu sil"
+                  title="Sil"
+                  (click)="removeAnnouncement(item)"
+                >
+                  <app-icon name="trash" />
+                </button>
+              </div>
+              <p class="ann-body">{{ item.content }}</p>
+              <span class="muted small">{{ formatDateTime(item.createdAt) }}</span>
+            </li>
+          }
+        </ul>
+        <app-pager [page]="annPage()" [totalPages]="annTotalPages()" (pageChange)="loadAnnouncements($event)" />
+      }
+    </section>
+  }
+</div>
+
+@if (taskTarget(); as target) {
+  <app-modal [title]="'Görev ata · ' + (target.fullName || 'Stajyer #' + target.userId)" (closed)="closeTaskDialog()">
+    <form class="stack" [formGroup]="taskForm" (ngSubmit)="assignTask()" novalidate>
+      <div class="field">
+        <label for="taskTitle">Başlık</label>
+        <input
+          id="taskTitle"
+          class="input"
+          type="text"
+          formControlName="title"
+          placeholder="Örn. API dokümantasyonunu oku"
+          [class.invalid]="taskForm.controls.title.touched && taskForm.controls.title.invalid"
+        />
+        @if (taskForm.controls.title.touched && taskForm.controls.title.invalid) {
+          <span class="field-error">Başlık en az 2 karakter olmalı.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="taskDesc">Açıklama <span class="muted">(isteğe bağlı)</span></label>
+        <textarea id="taskDesc" class="input" rows="3" formControlName="description" placeholder="Görevin detayları…"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="taskDue">Bitiş tarihi <span class="muted">(isteğe bağlı)</span></label>
+        <input id="taskDue" class="input" type="date" formControlName="dueDate" />
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeTaskDialog()">Vazgeç</button>
+        <button type="submit" class="btn btn-primary" [disabled]="savingTask()">
+          @if (savingTask()) { <span class="spinner"></span> }
+          Görevi ata
+        </button>
+      </div>
+    </form>
+  </app-modal>
+}

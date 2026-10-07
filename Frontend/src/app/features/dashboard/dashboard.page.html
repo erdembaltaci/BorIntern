@@ -1,0 +1,272 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>{{ greeting() }} 👋</h1>
+      <p>
+        @switch (user()?.role) {
+          @case ('Intern') { İşte staj görevlerinin ve notlarının güncel durumu. }
+          @case ('Mentor') { Gruplarını ve stajyerlerini buradan yönetebilirsin. }
+          @case ('Admin') { Sistemin genel durumu ve onay bekleyen işlemler. }
+        }
+      </p>
+    </div>
+  </header>
+
+  @if (error(); as message) {
+    <div class="alert alert-error" role="alert">
+      <app-icon name="alert-circle" />
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-secondary btn-sm retry" (click)="load()">Tekrar dene</button>
+    </div>
+  } @else if (loading()) {
+    <div class="grid grid-stats">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="skeleton" style="height: 104px"></div>
+      }
+    </div>
+    <div class="skeleton" style="height: 220px"></div>
+  } @else {
+    @switch (user()?.role) {
+      <!-- ================= STAJYER ================= -->
+      @case ('Intern') {
+        @if (returnedNoteCount() > 0) {
+          <div class="alert alert-warning" role="status">
+            <app-icon name="alert-circle" />
+            <span>Mentorun {{ returnedNoteCount() }} defter kaydında düzeltme istedi.</span>
+            <a routerLink="/defter" class="alert-link">Kayıtlara git</a>
+          </div>
+        }
+
+        <div class="grid grid-stats">
+          <a routerLink="/gorevler" [queryParams]="{ durum: 'Todo' }" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-neutral"><app-icon name="clock" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ todoCount() }}</div>
+              <div class="stat-label">Yapılacak</div>
+            </div>
+          </a>
+          <a routerLink="/gorevler" [queryParams]="{ durum: 'InProgress' }" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-info"><app-icon name="tasks" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ inProgressCount() }}</div>
+              <div class="stat-label">Devam ediyor</div>
+            </div>
+          </a>
+          <a routerLink="/gorevler" [queryParams]="{ durum: 'Completed' }" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-success"><app-icon name="check-circle" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ completedCount() }}</div>
+              <div class="stat-label">Tamamlandı</div>
+            </div>
+          </a>
+          <a routerLink="/defter" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-primary"><app-icon name="notes" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ noteCount() }}</div>
+              <div class="stat-label">Defter kaydı</div>
+            </div>
+          </a>
+        </div>
+
+        <div class="two-col">
+          <section class="card card-pad">
+            <div class="row-between card-title">
+              <h2>Yaklaşan görevler</h2>
+              <a routerLink="/gorevler" class="small">Tümünü gör</a>
+            </div>
+
+            @if (upcoming().length === 0) {
+              <app-empty-state
+                icon="check-circle"
+                title="Bekleyen görevin yok"
+                [text]="summary().totalTasks === 0 ? 'Mentorun sana görev atayınca burada görünecek.' : 'Tüm görevlerini tamamladın, harika!'"
+              />
+            } @else {
+              <ul class="list">
+                @for (task of upcoming(); track task.id) {
+                  <li class="list-item">
+                    <div class="list-main">
+                      <strong>{{ task.title }}</strong>
+                      @if (task.dueDate) {
+                        <span class="small" [class.overdue]="isPastDay(task.dueDate)">
+                          {{ formatDay(task.dueDate) }} · {{ relativeDay(task.dueDate) }}
+                        </span>
+                      } @else {
+                        <span class="small muted">Bitiş tarihi yok</span>
+                      }
+                    </div>
+                    <app-badge kind="task" [value]="task.status" />
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+
+          <section class="card card-pad">
+            <h2 class="card-title">Genel ilerleme</h2>
+            <div class="percent">%{{ completionPercent() }}</div>
+            <div class="progress" role="progressbar" [attr.aria-valuenow]="completionPercent()" aria-valuemin="0" aria-valuemax="100">
+              <span [style.width.%]="completionPercent()"></span>
+            </div>
+            <p class="muted small progress-text">
+              {{ summary().totalTasks }} görevden {{ completedCount() }} tanesi tamamlandı.
+            </p>
+            @if (overdueCount() > 0) {
+              <div class="alert alert-warning">
+                <app-icon name="alert-circle" />
+                <span>{{ overdueCount() }} görevin teslim tarihi geçti.</span>
+              </div>
+            }
+            <a routerLink="/defter" class="btn btn-secondary btn-block"><app-icon name="edit" [size]="16" /> Bugünün kaydını yaz</a>
+          </section>
+        </div>
+
+        @if (latestAnnouncements().length > 0) {
+          <section class="card card-pad">
+            <div class="row-between card-title">
+              <h2>Son duyurular</h2>
+              <a routerLink="/duyurular" class="small">Tümünü gör</a>
+            </div>
+            <ul class="list">
+              @for (item of latestAnnouncements(); track item.id) {
+                <li class="list-item">
+                  <span class="stat-icon tone-primary small-icon"><app-icon name="megaphone" [size]="18" /></span>
+                  <div class="list-main">
+                    <strong>{{ item.title }}</strong>
+                    <span class="small muted">{{ item.groupName }} · {{ item.mentorName }} · {{ formatDateTime(item.createdAt) }}</span>
+                  </div>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      }
+
+      <!-- ================= MENTOR ================= -->
+      @case ('Mentor') {
+        <div class="grid grid-stats">
+          <a routerLink="/gruplar" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-primary"><app-icon name="folder" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ groupTotal() }}</div>
+              <div class="stat-label">Grup</div>
+            </div>
+          </a>
+          <a routerLink="/atadigim-gorevler" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-success"><app-icon name="tasks" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ createdTaskTotal() }}</div>
+              <div class="stat-label">Atadığım görev</div>
+            </div>
+          </a>
+          <a routerLink="/defter-onaylari" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-warning"><app-icon name="notes" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ pendingJournalCount() }}</div>
+              <div class="stat-label">Onay bekleyen defter</div>
+            </div>
+          </a>
+        </div>
+
+        <section class="card card-pad">
+          <div class="row-between card-title">
+            <h2>Gruplarım</h2>
+            <a routerLink="/gruplar" class="small">Tümünü yönet</a>
+          </div>
+
+          @if (groups().length === 0) {
+            <app-empty-state
+              icon="folder"
+              title="Henüz grubun yok"
+              text="Stajyerlerini bir araya getirmek ve görev atamak için ilk grubunu oluştur."
+            >
+              <a routerLink="/gruplar" class="btn btn-primary"><app-icon name="plus" [size]="16" /> Grup oluştur</a>
+            </app-empty-state>
+          } @else {
+            <ul class="list">
+              @for (group of groups(); track group.id) {
+                <li class="list-item">
+                  <div class="list-main">
+                    <strong>{{ group.name }}</strong>
+                    <span class="small muted">Grup #{{ group.id }}</span>
+                  </div>
+                  <a [routerLink]="['/gruplar', group.id]" class="btn btn-secondary btn-sm">
+                    Aç <app-icon name="arrow-right" [size]="15" />
+                  </a>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      }
+
+      <!-- ================= ADMİN ================= -->
+      @case ('Admin') {
+        <div class="grid grid-stats">
+          <a routerLink="/yonetim/kullanicilar" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-primary"><app-icon name="users" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ stats().users }}</div>
+              <div class="stat-label">Kullanıcı</div>
+            </div>
+          </a>
+          <a routerLink="/yonetim/kullanicilar" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-warning"><app-icon name="user-plus" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ stats().pending }}</div>
+              <div class="stat-label">Onay bekleyen</div>
+            </div>
+          </a>
+          <a routerLink="/yonetim/gruplar" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-info"><app-icon name="folder" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ stats().groups }}</div>
+              <div class="stat-label">Grup</div>
+            </div>
+          </a>
+          <a routerLink="/yonetim/gorevler" class="card card-pad stat card-hover">
+            <span class="stat-icon tone-success"><app-icon name="tasks" [size]="20" /></span>
+            <div>
+              <div class="stat-value">{{ stats().tasks }}</div>
+              <div class="stat-label">Görev</div>
+            </div>
+          </a>
+        </div>
+
+        <section class="card card-pad">
+          <div class="row-between card-title">
+            <h2>Onay bekleyen kullanıcılar</h2>
+            @if (stats().pending > pendingUsers().length) {
+              <a routerLink="/yonetim/kullanicilar" class="small">Tümünü gör ({{ stats().pending }})</a>
+            }
+          </div>
+
+          @if (pendingUsers().length === 0) {
+            <app-empty-state icon="check-circle" title="Bekleyen onay yok" text="Yeni kayıtlar burada görünecek." />
+          } @else {
+            <ul class="list">
+              @for (pending of pendingUsers(); track pending.id) {
+                <li class="list-item">
+                  <span class="avatar">{{ initials(pending.fullName) }}</span>
+                  <div class="list-main">
+                    <strong>{{ pending.fullName }}</strong>
+                    <span class="small muted">{{ pending.email }}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    [disabled]="approvingId() === pending.id"
+                    (click)="approve(pending)"
+                  >
+                    @if (approvingId() === pending.id) { <span class="spinner"></span> } @else { <app-icon name="check" [size]="16" /> }
+                    Onayla
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      }
+    }
+  }
+</div>

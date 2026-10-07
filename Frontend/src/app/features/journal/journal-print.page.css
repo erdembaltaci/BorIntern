@@ -1,0 +1,160 @@
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+}
+.controls .field {
+  min-width: 160px;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+.controls .row {
+  margin-left: auto;
+}
+
+/* ---- Belge (ekranda kâğıt gibi, yazdırmada tam sayfa) ---- */
+.doc {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2.25rem 2.5rem;
+  background: #fff;
+  color: #111;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  line-height: 1.55;
+}
+.doc-head {
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #111;
+}
+.doc-brand {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #555;
+}
+.doc-head h1 {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 1.8rem;
+}
+.doc-period {
+  color: #444;
+}
+.doc-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin: 1rem 0 0;
+}
+.doc-stats div {
+  display: flex;
+  flex-direction: column;
+}
+.doc-stats dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #666;
+}
+.doc-stats dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.doc-entry {
+  padding: 1rem 0;
+  border-bottom: 1px solid #ddd;
+  /* Bir kayıt sayfa sonunda ikiye bölünmesin. */
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.doc-entry-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #333;
+}
+.doc-entry h2 {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 1.1rem;
+}
+.doc-label {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #666;
+}
+.doc-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.doc-tags,
+.doc-status,
+.doc-comment {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #444;
+}
+.doc-comment {
+  padding-left: 0.75rem;
+  border-left: 3px solid #bbb;
+  font-style: italic;
+}
+.doc-sign {
+  display: flex;
+  justify-content: space-between;
+  gap: 3rem;
+  margin-top: 3rem;
+  break-inside: avoid;
+}
+.doc-sign div {
+  flex: 1;
+  padding-top: 2.5rem;
+  border-bottom: 1px solid #111;
+  position: relative;
+}
+.doc-sign span {
+  position: absolute;
+  left: 0;
+  bottom: -1.4rem;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+@media (max-width: 640px) {
+  .doc {
+    padding: 1.25rem;
+  }
+  .controls .row {
+    margin-left: 0;
+  }
+}
+
+@media print {
+  .doc {
+    max-width: none;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}

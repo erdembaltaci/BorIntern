@@ -1,0 +1,65 @@
+<div class="shell">
+  <!-- Mobil üst çubuk: masaüstünde gizli -->
+  <header class="topbar">
+    <button type="button" class="btn btn-ghost btn-icon" aria-label="Menüyü aç" (click)="toggleMenu()">
+      <app-icon name="menu" [size]="22" />
+    </button>
+    <a class="brand" routerLink="/">
+      <span class="brand-mark"><app-icon name="brand" [size]="18" /></span>
+      Pusula
+    </a>
+    <button type="button" class="btn btn-ghost btn-icon" aria-label="Temayı değiştir" (click)="themeService.toggle()">
+      <app-icon [name]="themeService.theme() === 'dark' ? 'sun' : 'moon'" [size]="20" />
+    </button>
+  </header>
+
+  @if (menuOpen()) {
+    <div class="scrim" (click)="closeMenu()"></div>
+  }
+
+  <aside class="sidebar" [class.open]="menuOpen()" aria-label="Ana menü">
+    <a class="brand" routerLink="/" (click)="closeMenu()">
+      <span class="brand-mark"><app-icon name="brand" [size]="20" /></span>
+      Pusula
+    </a>
+
+    <nav class="nav">
+      @for (item of navItems(); track item.link) {
+        <a
+          class="nav-link"
+          [routerLink]="item.link"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: !!item.exact }"
+          (click)="closeMenu()"
+        >
+          <app-icon [name]="item.icon" [size]="19" />
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <button type="button" class="nav-link theme-btn" (click)="themeService.toggle()">
+        <app-icon [name]="themeService.theme() === 'dark' ? 'sun' : 'moon'" [size]="19" />
+        {{ themeService.theme() === 'dark' ? 'Açık tema' : 'Koyu tema' }}
+      </button>
+
+      @if (user(); as u) {
+        <div class="user-card">
+          <span class="avatar">{{ userInitials() }}</span>
+          <div class="user-info">
+            <strong class="user-name">{{ u.fullName }}</strong>
+            <app-badge kind="role" [value]="u.role" />
+          </div>
+          <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Çıkış yap" title="Çıkış yap" (click)="logout()">
+            <app-icon name="logout" />
+          </button>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

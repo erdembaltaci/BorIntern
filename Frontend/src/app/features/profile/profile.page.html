@@ -1,0 +1,69 @@
+<div class="page narrow">
+  <header class="page-header">
+    <div>
+      <h1>Profilim</h1>
+      <p>Hesap bilgilerini görüntüle ve adını güncelle.</p>
+    </div>
+  </header>
+
+  @if (user(); as u) {
+    <section class="card card-pad hero">
+      <span class="avatar avatar-lg">{{ initials(u.fullName) }}</span>
+      <div class="hero-text">
+        <h2>{{ u.fullName }}</h2>
+        <span class="muted">{{ u.email }}</span>
+        <div class="row badges">
+          <app-badge kind="role" [value]="u.role" />
+          <app-badge kind="user" [value]="u.status" />
+        </div>
+      </div>
+    </section>
+
+    <form class="card card-pad stack" (submit)="$event.preventDefault(); save()" novalidate>
+      <h2>Bilgilerim</h2>
+
+      <div class="field">
+        <label for="fullName">Ad soyad</label>
+        <input
+          id="fullName"
+          class="input"
+          type="text"
+          [formControl]="nameControl"
+          autocomplete="name"
+          [class.invalid]="nameControl.touched && nameControl.invalid"
+        />
+        @if (nameControl.touched && nameControl.invalid) {
+          <span class="field-error">Ad soyad en az 2 karakter olmalı.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="email">E-posta</label>
+        <input id="email" class="input" type="email" [value]="u.email" disabled />
+        <span class="hint">E-posta, rol ve durum sadece yönetici tarafından değiştirilebilir.</span>
+      </div>
+
+      <div class="field">
+        <label for="created">Kayıt tarihi</label>
+        <input id="created" class="input" type="text" [value]="formatDateTime(u.createdAt)" disabled />
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" [disabled]="saving() || nameControl.pristine">
+          @if (saving()) { <span class="spinner"></span> }
+          Değişiklikleri kaydet
+        </button>
+      </div>
+    </form>
+
+    <section class="card card-pad row-between">
+      <div>
+        <h2>Oturum</h2>
+        <p class="muted small">Bu cihazdaki oturumunu kapat.</p>
+      </div>
+      <button type="button" class="btn btn-danger-soft" (click)="logout()">
+        <app-icon name="logout" [size]="18" /> Çıkış yap
+      </button>
+    </section>
+  }
+</div>

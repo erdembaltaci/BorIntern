@@ -1,0 +1,861 @@
+/* =========================================================================
+   Pusula - global tasarım sistemi
+   Renkler CSS değişkenleri (token) olarak tanımlı: tema değişimi sadece değişkenleri değiştirir,
+   bileşenler renk bilmez. Açık tema varsayılan; koyu tema hem sistem tercihinden hem
+   <html data-theme="dark"> ile (kullanıcı seçimi sistem tercihini ezer) devreye girer.
+   ========================================================================= */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f4f5fa;
+  --surface: #ffffff;
+  --surface-2: #f0f2f8;
+  --border: #e3e6f0;
+  --border-strong: #cfd4e4;
+  --text: #141a2e;
+  --muted: #5f6881;
+
+  --primary: #5b5bd6;
+  --primary-hover: #4949c4;
+  --primary-soft: #ececfd;
+  --on-primary: #ffffff;
+
+  --success: #11765a;
+  --success-soft: #dcf5ea;
+  --warning: #a35a07;
+  --warning-soft: #fcefd6;
+  --danger: #c0352b;
+  --danger-soft: #fde7e5;
+  --info: #1c6bc4;
+  --info-soft: #e0edfc;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(20, 26, 46, 0.06), 0 1px 3px rgba(20, 26, 46, 0.04);
+  --shadow-md: 0 6px 24px rgba(20, 26, 46, 0.08);
+  --shadow-lg: 0 20px 50px rgba(20, 26, 46, 0.18);
+  --focus-ring: 0 0 0 3px rgba(91, 91, 214, 0.35);
+
+  --sidebar-width: 268px;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Koyu tema: kullanıcı açıkça "açık" seçmediyse sistem tercihine uyar. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0d1020;
+    --surface: #161a2e;
+    --surface-2: #1d2238;
+    --border: #272d48;
+    --border-strong: #353c5e;
+    --text: #e8ebf7;
+    --muted: #98a1c0;
+    --primary: #8585f0;
+    --primary-hover: #9d9df5;
+    --primary-soft: #26294d;
+    --on-primary: #0d1020;
+    --success: #4fd1a1;
+    --success-soft: #12342b;
+    --warning: #f0b45a;
+    --warning-soft: #3a2b12;
+    --danger: #f27a70;
+    --danger-soft: #3d1b19;
+    --info: #6fb0f5;
+    --info-soft: #14304f;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.6);
+    --focus-ring: 0 0 0 3px rgba(133, 133, 240, 0.45);
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0d1020;
+  --surface: #161a2e;
+  --surface-2: #1d2238;
+  --border: #272d48;
+  --border-strong: #353c5e;
+  --text: #e8ebf7;
+  --muted: #98a1c0;
+  --primary: #8585f0;
+  --primary-hover: #9d9df5;
+  --primary-soft: #26294d;
+  --on-primary: #0d1020;
+  --success: #4fd1a1;
+  --success-soft: #12342b;
+  --warning: #f0b45a;
+  --warning-soft: #3a2b12;
+  --danger: #f27a70;
+  --danger-soft: #3d1b19;
+  --info: #6fb0f5;
+  --info-soft: #14304f;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.6);
+  --focus-ring: 0 0 0 3px rgba(133, 133, 240, 0.45);
+}
+
+/* ---- Temel ---------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+h1 {
+  font-size: 1.6rem;
+}
+h2 {
+  font-size: 1.2rem;
+}
+h3 {
+  font-size: 1.05rem;
+}
+p {
+  margin: 0;
+}
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 8px;
+}
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.85rem;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---- Sayfa iskeleti -------------------------------------------------------- */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  animation: fade-up 0.25s ease both;
+}
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.page-header p {
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.row-between {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+.grid-cards {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.grid-stats {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+/* ---- Kart ----------------------------------------------------------------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.card-pad {
+  padding: 1.25rem;
+}
+.card-title {
+  margin-bottom: 0.9rem;
+}
+.card-hover {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+/* ---- Butonlar ------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 42px;
+  padding: 0 1.05rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.93rem;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.05s ease,
+    opacity 0.15s ease;
+}
+.btn:hover {
+  text-decoration: none;
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.btn-danger-soft {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.btn-danger-soft:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+.btn-sm {
+  min-height: 34px;
+  padding: 0 0.75rem;
+  font-size: 0.85rem;
+}
+.btn-block {
+  width: 100%;
+}
+.btn-icon {
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+}
+.btn-icon.btn-sm {
+  width: 34px;
+  min-height: 34px;
+}
+
+/* ---- Form ----------------------------------------------------------------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.field > label,
+.label {
+  font-size: 0.87rem;
+  font-weight: 600;
+}
+.input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.55rem 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+textarea.input {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.input::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+.input:hover {
+  border-color: var(--muted);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+.input.invalid {
+  border-color: var(--danger);
+}
+.input-wrap {
+  position: relative;
+}
+.input-wrap .input {
+  padding-right: 2.9rem;
+}
+.input-wrap .btn-icon {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+}
+.field-error {
+  color: var(--danger);
+  font-size: 0.82rem;
+}
+.hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+select.input {
+  appearance: none;
+  padding-right: 2.2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+}
+select.input-sm {
+  min-height: 34px;
+  padding: 0.2rem 2rem 0.2rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+/* ---- Uyarı kutusu --------------------------------------------------------- */
+.alert {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+.alert svg {
+  flex: none;
+  margin-top: 2px;
+}
+.alert-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.alert-info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.alert-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.alert-warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+/* ---- Rozet ---------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge-neutral {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.badge-primary {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.badge-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.badge-warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.badge-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.badge-info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+/* ---- Sekme / filtre çipleri ---------------------------------------------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 36px;
+  padding: 0 0.95rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.chip:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.chip .count {
+  font-size: 0.75rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.2);
+}
+
+/* ---- Tablo ---------------------------------------------------------------- */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius);
+}
+table.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+.table th {
+  text-align: left;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 0.8rem 1rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+/* Dar ekranda tablo satırları karta dönüşür (yatay kaydırma yerine). Hücrelerde data-label="Sütun adı" olmalı. */
+@media (max-width: 720px) {
+  table.table.responsive {
+    min-width: 0;
+  }
+  .table.responsive thead {
+    display: none;
+  }
+  .table.responsive,
+  .table.responsive tbody,
+  .table.responsive tr,
+  .table.responsive td {
+    display: block;
+    width: 100%;
+  }
+  .table.responsive tr {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .table.responsive tbody tr:last-child {
+    border-bottom: none;
+  }
+  .table.responsive td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.4rem 0;
+    border: none;
+    text-align: right;
+  }
+  .table.responsive td::before {
+    content: attr(data-label);
+    flex: none;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+  }
+  .table.responsive td.cell-full {
+    display: block;
+    text-align: left;
+  }
+  .table.responsive td.cell-full::before {
+    display: none;
+  }
+}
+
+/* ---- Liste satırları (kart içinde alt alta kayıtlar) ---------------------- */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.list-item:first-child {
+  padding-top: 0;
+}
+.list-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.list-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.list-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- İlerleme çubuğu ------------------------------------------------------ */
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--success));
+  transition: width 0.4s ease;
+}
+
+/* ---- Avatar --------------------------------------------------------------- */
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+/* ---- Yükleniyor / boş durum ---------------------------------------------- */
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.loading-block {
+  display: grid;
+  place-items: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+/* ---- Sayfalama ------------------------------------------------------------ */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* ---- Animasyonlar --------------------------------------------------------- */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+/* Hareketten rahatsız olan kullanıcılar için animasyonları kapatır. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Küçük ekran ayarları -------------------------------------------------- */
+@media (max-width: 640px) {
+  body {
+    font-size: 14.5px;
+  }
+  h1 {
+    font-size: 1.4rem;
+  }
+  .card-pad {
+    padding: 1rem;
+  }
+}
+
+/* ---- Pano kartı ve sürükle-bırak (Angular CDK) --------------------------------
+   Sürüklenirken kartın "önizleme"si <body>'ye taşınır; bileşenin kendi stilleri ona uygulanmaz.
+   Bu yüzden kartın görünümü burada, global olarak tanımlı. */
+.kb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  touch-action: manipulation;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+.kb-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+.kb-card.done .kb-title {
+  text-decoration: line-through;
+  text-decoration-color: var(--muted);
+  color: var(--muted);
+}
+.kb-title {
+  overflow-wrap: anywhere;
+}
+.kb-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.kb-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.kb-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.kb-due.overdue {
+  color: var(--danger);
+}
+.cdk-drag-preview {
+  box-sizing: border-box;
+  cursor: grabbing;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-lg);
+  z-index: 300 !important;
+}
+.cdk-drag-placeholder {
+  opacity: 0.35;
+}
+.cdk-drag-animating {
+  transition: transform 220ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* ---- Yazdırma (staj defteri PDF çıktısı) --------------------------------------
+   Tarayıcının "Yazdır > PDF olarak kaydet" seçeneğiyle çalışır. Menü, üst çubuk ve .no-print
+   işaretli her şey gizlenir; defter belgesi beyaz zeminde tam genişlikte basılır. */
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt;
+  }
+  .sidebar,
+  .topbar,
+  .scrim,
+  .no-print,
+  app-toast-container,
+  app-confirm-dialog {
+    display: none !important;
+  }
+  .content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .page {
+    max-width: none !important;
+    animation: none !important;
+  }
+  .card {
+    box-shadow: none !important;
+  }
+}

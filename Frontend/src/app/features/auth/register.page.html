@@ -1,0 +1,140 @@
+<div class="auth">
+  <section class="auth-aside">
+    <span class="auth-brand"><span class="mark"><app-icon name="brand" [size]="22" /></span> Pusula</span>
+
+    <div>
+      <h2>Staj yolculuğuna başla.</h2>
+      <p>Hesabını oluştur; yönetici onayladıktan sonra görevlerini ve notlarını yönetmeye başlayabilirsin.</p>
+    </div>
+
+    <ul class="auth-points">
+      <li><span class="dot"><app-icon name="check" [size]="14" /></span> Kayıt ücretsiz ve birkaç saniye sürer</li>
+      <li><span class="dot"><app-icon name="check" [size]="14" /></span> Hesabın yönetici onayından sonra aktif olur</li>
+      <li><span class="dot"><app-icon name="check" [size]="14" /></span> Verilerin yalnızca sana ve mentoruna açıktır</li>
+    </ul>
+  </section>
+
+  <main class="auth-main">
+    <button type="button" class="btn btn-ghost btn-icon auth-theme" aria-label="Temayı değiştir" (click)="themeService.toggle()">
+      <app-icon [name]="themeService.theme() === 'dark' ? 'sun' : 'moon'" [size]="20" />
+    </button>
+
+    <div class="auth-card">
+      <span class="auth-mobile-brand"><span class="mark"><app-icon name="brand" [size]="20" /></span> Pusula</span>
+
+      @if (registeredEmail(); as email) {
+        <div class="success-box">
+          <span class="success-icon"><app-icon name="check-circle" [size]="32" /></span>
+          <h1>Kaydın alındı</h1>
+          <p class="muted">
+            <strong>{{ email }}</strong> için hesap oluşturuldu. Yönetici hesabını onayladığında giriş yapabilirsin.
+          </p>
+          <a class="btn btn-primary" routerLink="/giris">Giriş sayfasına git</a>
+        </div>
+      } @else {
+        <h1>Hesap oluştur</h1>
+        <p class="muted">Bilgilerini gir, birkaç saniyede kaydol.</p>
+
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          @if (error(); as message) {
+            <div class="alert alert-error" role="alert">
+              <app-icon name="alert-circle" />
+              <span>{{ message }}</span>
+            </div>
+          }
+
+          <div class="field">
+            <label for="fullName">Ad soyad</label>
+            <input
+              id="fullName"
+              class="input"
+              type="text"
+              formControlName="fullName"
+              autocomplete="name"
+              placeholder="Ayşe Yılmaz"
+              [class.invalid]="form.controls.fullName.touched && form.controls.fullName.invalid"
+            />
+            @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
+              <span class="field-error">Ad soyad en az 2 karakter olmalı.</span>
+            }
+          </div>
+
+          <div class="field">
+            <label for="email">E-posta</label>
+            <input
+              id="email"
+              class="input"
+              type="email"
+              formControlName="email"
+              autocomplete="email"
+              placeholder="ornek@mail.com"
+              [class.invalid]="form.controls.email.touched && form.controls.email.invalid"
+            />
+            @if (form.controls.email.touched && form.controls.email.invalid) {
+              <span class="field-error">
+                {{ form.controls.email.hasError('required') ? 'E-posta zorunludur.' : 'Geçerli bir e-posta adresi gir.' }}
+              </span>
+            }
+          </div>
+
+          <div class="field">
+            <label for="password">Parola</label>
+            <div class="input-wrap">
+              <input
+                id="password"
+                class="input"
+                [type]="showPassword() ? 'text' : 'password'"
+                formControlName="password"
+                autocomplete="new-password"
+                placeholder="••••••••"
+                [class.invalid]="form.controls.password.touched && form.controls.password.invalid"
+              />
+              <button
+                type="button"
+                class="btn btn-ghost btn-icon btn-sm"
+                [attr.aria-label]="showPassword() ? 'Parolayı gizle' : 'Parolayı göster'"
+                (click)="showPassword.set(!showPassword())"
+              >
+                <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" />
+              </button>
+            </div>
+            <ul class="rules">
+              @for (rule of rules(); track rule.label) {
+                <li [class.ok]="rule.ok">
+                  <span class="tick">@if (rule.ok) { <app-icon name="check" [size]="10" /> }</span>
+                  {{ rule.label }}
+                </li>
+              }
+            </ul>
+          </div>
+
+          <div class="field">
+            <label for="confirmPassword">Parola (tekrar)</label>
+            <input
+              id="confirmPassword"
+              class="input"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="confirmPassword"
+              autocomplete="new-password"
+              placeholder="••••••••"
+              [class.invalid]="form.controls.confirmPassword.touched && (form.hasError('mismatch') || form.controls.confirmPassword.invalid)"
+            />
+            @if (form.controls.confirmPassword.touched && form.hasError('mismatch')) {
+              <span class="field-error">Parolalar eşleşmiyor.</span>
+            }
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="loading()">
+            @if (loading()) {
+              <span class="spinner"></span> Kaydediliyor…
+            } @else {
+              Kayıt ol
+            }
+          </button>
+        </form>
+
+        <p class="auth-switch">Zaten hesabın var mı? <a routerLink="/giris">Giriş yap</a></p>
+      }
+    </div>
+  </main>
+</div>

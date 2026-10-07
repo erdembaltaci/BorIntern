@@ -1,6 +1,6 @@
-# Staj Takip Sistemi
+# Pusula
 
-Angular ve ASP.NET Core kullanılarak geliştirilecek basit bir fullstack staj takip uygulaması.
+Stajyerlerin görevlerini, günlük defterlerini ve mentor geri bildirimlerini tek yerden yöneten fullstack bir staj takip uygulaması (Angular + ASP.NET Core + SQL Server). Adı: Pusula — mentor yön gösterir, stajyer yolunu bulur.
 
 ## Hızlı Kurulum (sıfırdan çalıştırma)
 
@@ -38,9 +38,9 @@ UPDATE Users SET Role = 2, Status = 1 WHERE Email = 'ornek@mail.com';
 
 **Veritabanını başka bir sunucuya taşımak** kod değişikliği gerektirmez: yeni sunucuda `dotnet ef database update` çalıştır (veri de gerekiyorsa `BACKUP`/`RESTORE`), sonra `ConnectionStrings:DefaultConnection` değerini yeni adresle güncelle. Production'da aynı anahtar ortam değişkeninden okunur: `ConnectionStrings__DefaultConnection`.
 
-## API Uç Noktaları (36)
+## API Uç Noktaları (49)
 
-Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Yetki (rol) kontrolü `[Authorize]` ile, sahiplik kontrolü (kayıt sahibi/ilgili mentor olma şartı) serviste yapılır.
+Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Mentor/Admin listeleri (`/groups/mine`, `/tasks/created`, `/admin/users`, `/admin/users/pending`, `/admin/groups`, `/admin/tasks`) ayrıca `?search=` ile sunucu tarafında aranır: kullanıcıda ad/e-posta, grupta grup adı (admin için mentor adı da), görevde başlık/açıklama/stajyer ve mentor adı. Yetki (rol) kontrolü `[Authorize]` ile, sahiplik kontrolü (kayıt sahibi/ilgili mentor olma şartı) serviste yapılır.
 
 | Uç nokta | Kim | Ne yapar |
 |---|---|---|
@@ -52,6 +52,7 @@ Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Yetki (rol) kontrolü 
 | **Profil** | | |
 | `GET /api/users/me` | Giriş yapmış herkes | Kendi profilini görür |
 | `PUT /api/users/me` | Giriş yapmış herkes | Kendi adını günceller |
+| `GET /api/users/interns?search=` | Mentor | Aktif stajyerleri ad/e-posta ile arar (gruba eklemek için) |
 | **Admin** | | |
 | `GET /api/admin/users` | Admin | Tüm kullanıcılar |
 | `GET /api/admin/users/pending` | Admin | Onay bekleyenler (Pending) |
@@ -68,24 +69,37 @@ Liste uç noktaları sayfalanır (`?page=1&pageSize=20`). Yetki (rol) kontrolü 
 | `PUT /api/groups/{id}` | Mentor (sahibi) | Grup adını günceller |
 | `DELETE /api/groups/{id}` | Mentor (sahibi) | Soft delete |
 | `POST /api/groups/{id}/restore` | Mentor (sahibi) | Silinen grubu geri getirir |
-| `POST /api/groups/{id}/members` | Mentor (sahibi) | Üye ekler |
-| `GET /api/groups/{id}/members` | Grubun mentoru veya üyesi | Üyeleri listeler |
+| `POST /api/groups/{id}/members` | Mentor (sahibi) | Üye ekler (sadece aktif stajyer; yoksa 404, stajyer değilse 400) |
+| `GET /api/groups/{id}/members` | Grubun mentoru veya üyesi | Üyeleri listeler (ad ve e-posta dahil) |
 | `DELETE /api/groups/{id}/members/{userId}` | Mentor (sahibi) | Üyeyi çıkarır (soft) |
 | **Görev** | | |
 | `POST /api/tasks` | Mentor | Kendi grubundaki stajyere görev atar |
-| `GET /api/tasks/mine` | Giriş yapmış herkes | Kendine atanan görevler |
+| `GET /api/tasks/mine?status=` | Giriş yapmış herkes | Kendine atanan görevler (durum sunucuda süzülür, sayfalı) |
+| `GET /api/tasks/mine/summary` | Giriş yapmış herkes | Durum sayıları ve geciken görev sayısı (tek gruplu sorgu) |
+| `GET /api/tasks/mine/upcoming?take=` | Giriş yapmış herkes | Bitiş tarihi en yakın bitmemiş görevler |
+| `GET /api/tasks/created` | Mentor | Kendi atadığı görevler |
 | `GET /api/tasks/{id}` | Atanan stajyer veya oluşturan mentor | Tekil görev |
 | `PUT /api/tasks/{id}/status` | Atanan stajyer | Durumu günceller (Todo/InProgress/Completed) |
 | `DELETE /api/tasks/{id}` | Oluşturan mentor | Soft delete |
 | `POST /api/tasks/{id}/restore` | Oluşturan mentor | Geri getirir |
 | `GET /api/tasks/summary/{userId}` | Mentor (kendi grubundaki stajyer) | Durum sayıları özeti |
-| **Not** | | |
-| `POST /api/notes` | Giriş yapmış herkes | Günlük not ekler |
-| `GET /api/notes/mine` | Giriş yapmış herkes | Kendi notları |
-| `GET /api/notes/{id}` | Notun sahibi | Tekil not |
-| `PUT /api/notes/{id}` | Notun sahibi | Günceller |
-| `DELETE /api/notes/{id}` | Notun sahibi | Soft delete |
-| `POST /api/notes/{id}/restore` | Notun sahibi | Geri getirir |
+| **Duyuru** | | |
+| `POST /api/groups/{id}/announcements` | Mentor (sahibi) | Gruba duyuru gönderir (başlık ≤150, metin ≤2000 karakter) |
+| `GET /api/groups/{id}/announcements` | Grubun mentoru veya üyesi | Grubun duyuruları, en yeni önce |
+| `GET /api/announcements/mine` | Giriş yapmış herkes | Üyesi olduğum tüm grupların duyuruları (grup ve mentor adıyla) |
+| `DELETE /api/groups/{id}/announcements/{announcementId}` | Mentor (sahibi) | Soft delete |
+| **Staj defteri** | | |
+| `POST /api/notes` | Giriş yapmış herkes | Defter kaydı ekler (başlık, yapılan iş, öğrenilen, süre, etiket); günde tek kayıt (aynı güne ikinci kayıt 409) |
+| `GET /api/notes/mine?status=&search=` | Giriş yapmış herkes | Kendi kayıtları, tarihe göre en yeni önce (sayfalı) |
+| `GET /api/notes/{id}` | Sahibi veya (taslak değilse) sahibinin mentoru | Tekil kayıt |
+| `PUT /api/notes/{id}` | Sahibi | Günceller (sadece Taslak / Düzeltme istendi durumunda) |
+| `DELETE /api/notes/{id}` | Sahibi | Soft delete (sadece Taslak / Düzeltme istendi durumunda) |
+| `POST /api/notes/{id}/restore` | Sahibi | Geri getirir |
+| `POST /api/notes/{id}/submit` | Sahibi | Kaydı mentora gönderir (Onay bekliyor) |
+| `POST /api/notes/{id}/withdraw` | Sahibi | Henüz değerlendirilmemiş kaydı geri çeker (Taslak) |
+| `GET /api/notes/review?status=&search=` | Mentor | Kendi gruplarındaki stajyerlerin gönderilmiş kayıtları (taslaklar görünmez) |
+| `POST /api/notes/{id}/review` | Mentor (stajyerin mentoru) | Onaylar ya da açıklamayla düzeltme ister |
+| `GET /api/notes/export?from=&to=` | Giriş yapmış herkes | Yazdırılabilir defter için tarih aralığındaki kendi kayıtları (eskiden yeniye, en fazla 400) |
 
 ## 1. Projenin Amacı
 
@@ -171,9 +185,16 @@ Id, FullName, Email, PasswordHash, Role, Status, CreatedAt
 - `Id`, `Title`, `Description`, `Status`, `DueDate`, `AssignedUserId`, `CreatedByUserId`, `CreatedAt`
 - Soft delete: `IsDeleted`, `DeletedAt`
 
-### InternshipNote
+### Announcement
 
-- `Id`, `Content`, `NoteDate`, `UserId`, `CreatedAt`
+- `Id`, `GroupId`, `MentorId`, `Title`, `Content`, `CreatedAt`
+- Soft delete: `IsDeleted`, `DeletedAt`
+
+### InternshipNote (staj defteri kaydı)
+
+- `Id`, `UserId`, `NoteDate` (gün), `Title`, `Content` ("yapılan iş"), `Learned`, `HoursSpent`, `Tags`, `CreatedAt`
+- Onay akışı: `Status` (Draft → Submitted → Approved / ReturnedForRevision), `SubmittedAt`, `MentorComment`, `ReviewedAt`, `ReviewedByUserId`
+- Kurallar: günde tek kayıt; sadece Draft ve ReturnedForRevision düzenlenir/silinir; Submitted geri çekilebilir; Approved kilitlidir. Taslaklar mentora görünmez.
 - Soft delete: `IsDeleted`, `DeletedAt`
 
 İlişki: Bir mentor birçok grup oluşturabilir; bir grubun birçok üyesi (stajyeri) olabilir; bir kullanıcı birçok göreve ve staj notuna sahip olabilir.
@@ -195,11 +216,12 @@ BorBlog/
 │   ├── Migrations/
 │   └── Program.cs            (DI, JWT, CORS, rate limit, middleware sırası)
 ├── Backend.Tests/            (xUnit + Moq unit testleri)
-├── Frontend/                 (henüz oluşturulmadı)
+├── Frontend/                 (Angular 22, standalone + signals, lazy-load sayfalar)
 │   └── src/app/
-│       ├── core/
-│       ├── shared/
-│       └── features/
+│       ├── core/             (ApiService, AuthService, interceptor, guard'lar, modeller)
+│       ├── shared/           (ikon, rozet, modal, toast, sayfalama gibi ortak bileşenler)
+│       ├── layout/           (yan menülü ana düzen)
+│       └── features/         (auth, dashboard, tasks, notes, groups, admin, profile)
 ├── BorBlog.slnx
 └── README.md
 ```
@@ -338,14 +360,19 @@ RabbitMQ ve MQTT ileride, ana CRUD sistemi bittikten sonra, küçük ve ayrı bi
 - **Task:** oluşturma/durum güncelleme/listeleme/tekil görüntüleme/silme(soft)/restore/performans özeti, Admin tüm görevleri görebilir
 - **InternshipNote:** ekleme/listeleme/tekil görüntüleme/güncelleme/silme(soft)/restore
 
-**Test:** `Backend.Tests` içinde 113 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
+**Test:** `Backend.Tests` içinde 204 unit test (xUnit + Moq), her serviste başarı + hata/sahiplik senaryoları kapsanmış.
 
-**Henüz yapılmadı (bilerek sonraya bırakılan):** Angular frontend, kalıcı entegrasyon test projesi (`WebApplicationFactory` + ayrı test veritabanı), Docker Compose (Backend+SQL+RabbitMQ birlikte), RabbitMQ (register sonrası email bildirimi), Azure'a canlıya alma.
+**Frontend:** `Frontend/` klasöründe Angular arayüzü var (giriş/kayıt + "beni hatırla", rol bazlı panel, sürükle-bırak görev panosu, onay akışlı staj defteri + PDF çıktı, mentor defter onayları, gruplar, grup duyuruları, admin ekranları, her listede arama; açık/koyu tema, mobil uyumlu). Hiçbir liste "tüm kayıtları çekmez": her şey sunucudan 10'arlı sayfalarla gelir. Çalıştırma: backend `dotnet run`, sonra `cd Frontend && npm install && npm start` (http://localhost:4200). Backend adresi `Frontend/src/app/core/config.ts` içinde.
+
+**Henüz yapılmadı (bilerek sonraya bırakılan):** kalıcı entegrasyon test projesi (`WebApplicationFactory` + ayrı test veritabanı), Docker Compose (Backend+SQL+RabbitMQ birlikte), RabbitMQ (register sonrası email bildirimi), Azure'a canlıya alma.
 
 ## 11. Sıradaki Adım (bir sonraki oturum)
 
-1. Uçtan uca testleri kalıcı bir entegrasyon test projesine taşı (`WebApplicationFactory` + ayrı test veritabanı); şimdilik 36 uç nokta ayrı bir geçici veritabanında script ile doğrulandı, repo'da yok.
-2. (Tartışmalı bir davranış) Admin tüm grupları görebiliyor ama bir grubun üyelerini listeleyemiyor (403); üye listesi kuralı "mentor veya üye". İstenirse Admin'e de izin verilir.
-3. Angular frontend'e başlangıç: proje iskeleti, routing, auth service, interceptor (JWT'yi her isteğe otomatik ekleyen), guard.
-4. Frontend geliştirilirken paralel olarak: RabbitMQ (register sonrası email bildirimi, küçük ilk kullanım).
-5. Daha sonra: Docker Compose ile Backend+SQL+RabbitMQ'yu tek komutla ayağa kaldırma, Azure'a canlıya alma.
+1. **AI entegrasyonu** (defter yapılandırılmış olduğu için hazır zemin): günün tamamlanan görevlerinden defter taslağı, metni resmî dile çevirme, haftalık özet, etiketlerden beceri çıkarımı.
+2. Bildirimler (yeni görev, duyuru, defter onayı/düzeltme): önce uygulama içi, sonra e-posta (RabbitMQ).
+3. Görev yorumları ve dosya eki; mentor haftalık değerlendirmesi (puan/geri bildirim); takvim görünümü; admin raporları ve grafikler.
+4. Uçtan uca testleri kalıcı bir entegrasyon test projesine taşı (`WebApplicationFactory` + ayrı test veritabanı); şimdilik tarayıcı senaryoları geçici betiklerle doğrulandı, repo'da yok.
+5. (Tartışmalı bir davranış) Admin tüm grupları görebiliyor ama bir grubun üyelerini listeleyemiyor ve görev atayamıyor; bilerek böyle bırakıldı.
+6. Daha sonra: Docker Compose ile Backend+SQL tek komutla ayağa kaldırma, Azure'a canlıya alma.
+
+**Bilinen sınır:** SQL Server'ın varsayılan karşılaştırma kuralı (`SQL_Latin1_General_CP1_CI_AS`) Türkçe büyük "İ" ile "i"yi eşleştirmez; aramada `İstanbul` yazınca `istanbul` bulunmaz (küçük harfle sorun yok).

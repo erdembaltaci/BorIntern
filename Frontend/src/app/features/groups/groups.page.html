@@ -1,0 +1,100 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Gruplarım</h1>
+      <p>Stajyerlerini gruplara ayır, görev ata ve ilerlemelerini takip et.</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openCreate()">
+      <app-icon name="plus" [size]="18" /> Yeni grup
+    </button>
+  </header>
+
+  <app-search-box placeholder="Grup adına göre ara…" (searched)="onSearch($event)" />
+
+  @if (error(); as message) {
+    <div class="alert alert-error" role="alert">
+      <app-icon name="alert-circle" />
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-secondary btn-sm retry" (click)="load(page())">Tekrar dene</button>
+    </div>
+  } @else if (loading() && groups().length === 0) {
+    <div class="grid grid-cards">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="skeleton" style="height: 140px"></div>
+      }
+    </div>
+  } @else if (groups().length === 0 && search()) {
+    <div class="card">
+      <app-empty-state icon="search" title="Sonuç bulunamadı" [text]="'“' + search() + '” ile eşleşen grup yok.'" />
+    </div>
+  } @else if (groups().length === 0) {
+    <div class="card">
+      <app-empty-state
+        icon="folder"
+        title="Henüz grubun yok"
+        text="İlk grubunu oluştur, ardından stajyerlerini ekleyip görev atayabilirsin."
+      >
+        <button type="button" class="btn btn-primary" (click)="openCreate()">
+          <app-icon name="plus" [size]="18" /> Grup oluştur
+        </button>
+      </app-empty-state>
+    </div>
+  } @else {
+    <div class="grid grid-cards" [class.dim]="loading()">
+      @for (group of groups(); track group.id) {
+        <article class="card card-pad group">
+          <div class="group-head">
+            <span class="group-icon"><app-icon name="folder" [size]="22" /></span>
+            <div class="group-text">
+              <h3>{{ group.name }}</h3>
+              <span class="muted small">{{ formatDateTime(group.createdAt) }}</span>
+            </div>
+          </div>
+
+          <div class="group-actions">
+            <a class="btn btn-primary btn-sm" [routerLink]="['/gruplar', group.id]">
+              Üyeler ve görevler <app-icon name="arrow-right" [size]="15" />
+            </a>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Grubu yeniden adlandır" title="Yeniden adlandır" (click)="openRename(group)">
+              <app-icon name="edit" />
+            </button>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Grubu sil" title="Sil" (click)="remove(group)">
+              <app-icon name="trash" />
+            </button>
+          </div>
+        </article>
+      }
+    </div>
+
+    <app-pager [page]="page()" [totalPages]="totalPages()" (pageChange)="load($event)" />
+  }
+</div>
+
+@if (dialog() !== null) {
+  <app-modal [title]="dialog() === 'new' ? 'Yeni grup' : 'Grubu yeniden adlandır'" (closed)="closeDialog()">
+    <form class="stack" (submit)="$event.preventDefault(); save()" novalidate>
+      <div class="field">
+        <label for="groupName">Grup adı</label>
+        <input
+          id="groupName"
+          class="input"
+          type="text"
+          [formControl]="nameControl"
+          placeholder="Örn. Yaz Stajı 2026"
+          maxlength="100"
+          [class.invalid]="nameControl.touched && nameControl.invalid"
+        />
+        @if (nameControl.touched && nameControl.invalid) {
+          <span class="field-error">Grup adı en az 2 karakter olmalı.</span>
+        }
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeDialog()">Vazgeç</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          @if (saving()) { <span class="spinner"></span> }
+          {{ dialog() === 'new' ? 'Oluştur' : 'Kaydet' }}
+        </button>
+      </div>
+    </form>
+  </app-modal>
+}

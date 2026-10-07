@@ -1,0 +1,107 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Kullanıcılar</h1>
+      <p>Yeni kayıtları onayla, kullanıcıları pasifleştir ve rol ata.</p>
+    </div>
+  </header>
+
+  <app-search-box placeholder="Ad veya e-posta ile ara…" (searched)="onSearch($event)" />
+
+  <div class="chips" role="tablist">
+    <button type="button" class="chip" role="tab" [class.active]="tab() === 'all'" (click)="setTab('all')">Tüm kullanıcılar</button>
+    <button type="button" class="chip" role="tab" [class.active]="tab() === 'pending'" (click)="setTab('pending')">
+      Onay bekleyen <span class="count">{{ pendingCount() }}</span>
+    </button>
+  </div>
+
+  @if (error(); as message) {
+    <div class="alert alert-error" role="alert">
+      <app-icon name="alert-circle" />
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-secondary btn-sm retry" (click)="load(page())">Tekrar dene</button>
+    </div>
+  } @else if (loading() && users().length === 0) {
+    <div class="skeleton" style="height: 320px"></div>
+  } @else if (users().length === 0 && search()) {
+    <div class="card">
+      <app-empty-state icon="search" title="Sonuç bulunamadı" [text]="'“' + search() + '” ile eşleşen kullanıcı yok.'" />
+    </div>
+  } @else if (users().length === 0) {
+    <div class="card">
+      <app-empty-state
+        icon="users"
+        [title]="tab() === 'pending' ? 'Onay bekleyen kullanıcı yok' : 'Henüz kullanıcı yok'"
+        [text]="tab() === 'pending' ? 'Yeni kayıtlar burada görünecek.' : ''"
+      />
+    </div>
+  } @else {
+    <div class="card table-wrap" [class.dim]="loading()">
+      <table class="table responsive">
+        <thead>
+          <tr>
+            <th>Kullanıcı</th>
+            <th>Rol</th>
+            <th>Durum</th>
+            <th>Kayıt tarihi</th>
+            <th>İşlemler</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of users(); track user.id) {
+            <tr>
+              <td data-label="Kullanıcı">
+                <div class="user-cell">
+                  <span class="avatar">{{ initials(user.fullName) }}</span>
+                  <div class="user-text">
+                    <strong>{{ user.fullName }}
+                      @if (user.id === currentUserId) { <span class="muted small">(sen)</span> }
+                    </strong>
+                    <span class="muted small">{{ user.email }} · Id {{ user.id }}</span>
+                  </div>
+                </div>
+              </td>
+              <td data-label="Rol">
+                <select
+                  class="input input-sm role-select"
+                  [attr.aria-label]="user.fullName + ' rolü'"
+                  [disabled]="actingId() === user.id || user.id === currentUserId"
+                  [title]="user.id === currentUserId ? 'Kendi rolünü değiştiremezsin' : 'Rolü değiştir'"
+                  (change)="changeRole(user, $any($event.target))"
+                >
+                  @for (role of roles; track role) {
+                    <option [value]="role" [selected]="role === user.role">{{ roleLabel[role] }}</option>
+                  }
+                </select>
+              </td>
+              <td data-label="Durum"><app-badge kind="user" [value]="user.status" /></td>
+              <td data-label="Kayıt tarihi" class="nowrap small">{{ formatDateTime(user.createdAt) }}</td>
+              <td data-label="İşlemler">
+                <div class="row actions">
+                  @if (user.status !== 'Active') {
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="actingId() === user.id" (click)="approve(user)">
+                      @if (actingId() === user.id) { <span class="spinner"></span> } @else { <app-icon name="check" [size]="15" /> }
+                      {{ user.status === 'Pending' ? 'Onayla' : 'Aktifleştir' }}
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="btn btn-danger-soft btn-sm"
+                      [disabled]="actingId() === user.id || user.id === currentUserId"
+                      [title]="user.id === currentUserId ? 'Kendini pasifleştiremezsin' : ''"
+                      (click)="deactivate(user)"
+                    >
+                      Pasifleştir
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-pager [page]="page()" [totalPages]="totalPages()" (pageChange)="load($event)" />
+  }
+</div>

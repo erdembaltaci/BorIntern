@@ -1,0 +1,135 @@
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.entry.returned {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+}
+.entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.entry-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.entry-title {
+  overflow-wrap: anywhere;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.meta:empty {
+  display: none;
+}
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.tag {
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.text .label {
+  margin: 0.4rem 0 0.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+}
+.text .label:first-child {
+  margin-top: 0;
+}
+.body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Uzun kayıtlar önce kısaltılır; "Devamını göster" ile açılır. */
+.text.clamped {
+  max-height: 9.5rem;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+.more {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.87rem;
+  cursor: pointer;
+}
+.review {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: 0.9rem;
+}
+.review p {
+  margin-top: 0.2rem;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.review.review-warn {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.entry-actions .muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.dim {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.retry {
+  margin-left: auto;
+}
+@media (max-width: 560px) {
+  .two {
+    grid-template-columns: 1fr;
+  }
+}

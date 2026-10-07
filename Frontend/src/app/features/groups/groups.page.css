@@ -1,0 +1,58 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.group:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.group-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.group-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.group-text h3 {
+  overflow-wrap: anywhere;
+}
+.group-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: auto;
+}
+.group-actions .btn-primary {
+  flex: 1;
+}
+.dim {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.retry {
+  margin-left: auto;
+}

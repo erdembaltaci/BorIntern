@@ -1,0 +1,168 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Görevlerim</h1>
+      <p>
+        @if (view() === 'board') {
+          Kartları sürükleyip başka bir sütuna bırakarak durumunu güncelle.
+        } @else {
+          Mentorunun sana atadığı görevler. Durumunu buradan güncelleyebilirsin.
+        }
+      </p>
+    </div>
+
+    @if (summary().totalTasks > 0) {
+      <div class="view-toggle" role="group" aria-label="Görünüm">
+        <button type="button" [class.active]="view() === 'board'" (click)="setView('board')">
+          <app-icon name="board" [size]="16" /> Pano
+        </button>
+        <button type="button" [class.active]="view() === 'list'" (click)="setView('list')">
+          <app-icon name="list" [size]="16" /> Liste
+        </button>
+      </div>
+    }
+  </header>
+
+  @if (error(); as message) {
+    <div class="alert alert-error" role="alert">
+      <app-icon name="alert-circle" />
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-secondary btn-sm retry" (click)="load()">Tekrar dene</button>
+    </div>
+  } @else if (loading()) {
+    <div class="grid grid-cards">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="skeleton" style="height: 190px"></div>
+      }
+    </div>
+  } @else if (summary().totalTasks === 0) {
+    <div class="card">
+      <app-empty-state
+        icon="tasks"
+        title="Henüz görevin yok"
+        text="Mentorun sana bir görev atadığında burada görünecek."
+      />
+    </div>
+  } @else if (view() === 'board') {
+    <!-- ================= PANO (sürükle-bırak) ================= -->
+    <div class="board" cdkDropListGroup>
+      @for (status of statuses; track status) {
+        <section class="column" [attr.data-status]="status">
+          <header class="col-head">
+            <span class="col-dot"></span>
+            <h2>{{ statusLabel[status] }}</h2>
+            <span class="col-count">{{ columns()[status].total }}</span>
+          </header>
+
+          <div
+            class="col-list"
+            cdkDropList
+            [cdkDropListData]="columns()[status].items"
+            [cdkDropListSortingDisabled]="true"
+            (cdkDropListDropped)="drop($event, status)"
+          >
+            @for (task of columns()[status].items; track task.id) {
+              <article
+                class="kb-card"
+                cdkDrag
+                [cdkDragData]="task"
+                [cdkDragStartDelay]="{ touch: 250, mouse: 0 }"
+                [class.done]="task.status === 'Completed'"
+              >
+                <strong class="kb-title">{{ task.title }}</strong>
+                @if (task.description) {
+                  <p class="kb-desc">{{ task.description }}</p>
+                }
+                <div class="kb-foot">
+                  <span class="kb-due" [class.overdue]="task.status !== 'Completed' && isPastDay(task.dueDate)">
+                    <app-icon name="calendar" [size]="14" />
+                    @if (task.dueDate) {
+                      {{ formatDay(task.dueDate) }}
+                    } @else {
+                      Tarih yok
+                    }
+                  </span>
+                  @if (task.status !== 'Completed' && isPastDay(task.dueDate)) {
+                    <span class="badge badge-danger">Gecikti</span>
+                  }
+                </div>
+              </article>
+            } @empty {
+              <p class="col-empty">Buraya sürükle</p>
+            }
+          </div>
+
+          @if (columns()[status].page < columns()[status].totalPages) {
+            <button type="button" class="btn btn-ghost btn-sm" [disabled]="columns()[status].loading" (click)="loadMore(status)">
+              @if (columns()[status].loading) { <span class="spinner"></span> }
+              Daha fazla göster ({{ columns()[status].total - columns()[status].items.length }})
+            </button>
+          }
+        </section>
+      }
+    </div>
+  } @else {
+    <!-- ================= LİSTE ================= -->
+    <div class="chips" role="tablist" aria-label="Görev filtresi">
+      <button type="button" class="chip" [class.active]="filter() === 'All'" (click)="setFilter('All')">
+        Tümü <span class="count">{{ countFor('All') }}</span>
+      </button>
+      @for (status of statuses; track status) {
+        <button type="button" class="chip" [class.active]="filter() === status" (click)="setFilter(status)">
+          {{ statusLabel[status] }} <span class="count">{{ countFor(status) }}</span>
+        </button>
+      }
+    </div>
+
+    @if (listItems().length === 0 && !listLoading()) {
+      <div class="card">
+        <app-empty-state icon="inbox" title="Bu durumda görev yok" text="Başka bir filtre seçmeyi dene." />
+      </div>
+    } @else {
+      <div class="grid grid-cards" [class.dim]="listLoading()">
+        @for (task of listItems(); track task.id) {
+          <article class="card card-pad task" [class.done]="task.status === 'Completed'">
+            <div class="row-between">
+              <app-badge kind="task" [value]="task.status" />
+              @if (task.status !== 'Completed' && isPastDay(task.dueDate)) {
+                <span class="badge badge-danger">Gecikti</span>
+              }
+            </div>
+
+            <h3 class="task-title">{{ task.title }}</h3>
+            @if (task.description) {
+              <p class="task-desc muted">{{ task.description }}</p>
+            }
+
+            <div class="task-due" [class.overdue]="task.status !== 'Completed' && isPastDay(task.dueDate)">
+              <app-icon name="calendar" [size]="16" />
+              @if (task.dueDate) {
+                {{ formatDay(task.dueDate) }}
+                @if (task.status !== 'Completed') {
+                  <span class="muted small">· {{ relativeDay(task.dueDate) }}</span>
+                }
+              } @else {
+                <span class="muted">Bitiş tarihi yok</span>
+              }
+            </div>
+
+            <div class="segmented" role="group" [attr.aria-label]="task.title + ' durumu'">
+              @for (status of statuses; track status) {
+                <button
+                  type="button"
+                  [class.active]="task.status === status"
+                  [disabled]="savingId() !== null"
+                  (click)="changeStatus(task, status)"
+                >
+                  {{ statusLabel[status] }}
+                </button>
+              }
+            </div>
+          </article>
+        }
+      </div>
+
+      <app-pager [page]="listPage()" [totalPages]="listTotalPages()" (pageChange)="goToListPage($event)" />
+    }
+  }
+</div>

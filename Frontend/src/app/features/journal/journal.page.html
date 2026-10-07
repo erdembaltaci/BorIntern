@@ -1,0 +1,207 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Staj defterim</h1>
+      <p>Her gün için tek kayıt yaz, mentoruna gönder ve onay al. İstediğin zaman PDF olarak çıktısını alabilirsin.</p>
+    </div>
+    <div class="row">
+      <a routerLink="/defter/yazdir" class="btn btn-secondary"><app-icon name="notes" [size]="18" /> Yazdır / PDF</a>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><app-icon name="plus" [size]="18" /> Yeni kayıt</button>
+    </div>
+  </header>
+
+  <app-search-box placeholder="Başlık, yapılan iş, öğrenilen veya etiket ara…" (searched)="onSearch($event)" />
+
+  <div class="chips" role="tablist" aria-label="Durum filtresi">
+    <button type="button" class="chip" role="tab" [class.active]="filter() === 'All'" (click)="setFilter('All')">Tümü</button>
+    @for (status of statuses; track status) {
+      <button type="button" class="chip" role="tab" [class.active]="filter() === status" (click)="setFilter(status)">
+        {{ statusLabel[status] }}
+      </button>
+    }
+  </div>
+
+  @if (error(); as message) {
+    <div class="alert alert-error" role="alert">
+      <app-icon name="alert-circle" />
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-secondary btn-sm retry" (click)="load(page())">Tekrar dene</button>
+    </div>
+  } @else if (loading() && items().length === 0) {
+    <div class="stack">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="skeleton" style="height: 150px"></div>
+      }
+    </div>
+  } @else if (items().length === 0 && (search() || filter() !== 'All')) {
+    <div class="card">
+      <app-empty-state icon="search" title="Sonuç bulunamadı" text="Arama ya da durum filtresiyle eşleşen kayıt yok." />
+    </div>
+  } @else if (items().length === 0) {
+    <div class="card">
+      <app-empty-state icon="notes" title="Defterin henüz boş" text="Bugün neler yaptığını yazarak ilk kaydını oluştur.">
+        <button type="button" class="btn btn-primary" (click)="openNew()"><app-icon name="plus" [size]="18" /> İlk kaydı yaz</button>
+      </app-empty-state>
+    </div>
+  } @else {
+    <div class="stack" [class.dim]="loading()">
+      @for (note of items(); track note.id) {
+        <article class="card card-pad entry" [class.returned]="note.status === 'ReturnedForRevision'">
+          <div class="entry-head">
+            <div class="entry-date"><app-icon name="calendar" [size]="16" /> {{ formatDayLong(note.noteDate) }}</div>
+            <app-badge kind="note" [value]="note.status" />
+          </div>
+
+          <h3 class="entry-title">{{ note.title || 'Başlıksız kayıt' }}</h3>
+
+          <div class="meta">
+            @if (note.hoursSpent !== null) {
+              <span class="meta-item"><app-icon name="clock" [size]="14" /> {{ formatHours(note.hoursSpent) }} saat</span>
+            }
+            @for (tag of tagList(note); track tag) {
+              <span class="tag">{{ tag }}</span>
+            }
+          </div>
+
+          <div class="text" [class.clamped]="isLong(note) && !expanded().has(note.id)">
+            <p class="label small muted">Yapılan iş</p>
+            <p class="body">{{ note.content }}</p>
+            @if (note.learned) {
+              <p class="label small muted">Öğrenilenler</p>
+              <p class="body">{{ note.learned }}</p>
+            }
+          </div>
+          @if (isLong(note)) {
+            <button type="button" class="more" (click)="toggle(note.id)">
+              {{ expanded().has(note.id) ? 'Daha az göster' : 'Devamını göster' }}
+            </button>
+          }
+
+          @if (note.mentorComment) {
+            <div class="review" [class.review-warn]="note.status === 'ReturnedForRevision'">
+              <strong>
+                {{ note.status === 'ReturnedForRevision' ? 'Mentorun düzeltme istedi' : 'Mentor yorumu' }}
+                @if (note.reviewedByName) { · {{ note.reviewedByName }} }
+              </strong>
+              <p>{{ note.mentorComment }}</p>
+            </div>
+          } @else if (note.status === 'Approved') {
+            <div class="review">
+              <strong>Onaylandı @if (note.reviewedByName) { · {{ note.reviewedByName }} } @if (note.reviewedAt) { · {{ formatDateTime(note.reviewedAt) }} }</strong>
+            </div>
+          }
+
+          <div class="entry-actions">
+            @if (canEdit(note)) {
+              <button type="button" class="btn btn-primary btn-sm" [disabled]="busyId() === note.id" (click)="submit(note)">
+                <app-icon name="arrow-right" [size]="15" /> Mentora gönder
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyId() === note.id" (click)="openEdit(note)">
+                <app-icon name="edit" [size]="15" /> Düzenle
+              </button>
+              <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Kaydı sil" title="Sil" [disabled]="busyId() === note.id" (click)="remove(note)">
+                <app-icon name="trash" />
+              </button>
+            } @else if (note.status === 'Submitted') {
+              <span class="muted small">Mentorun değerlendirmesi bekleniyor.</span>
+              <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyId() === note.id" (click)="withdraw(note)">
+                <app-icon name="undo" [size]="15" /> Geri çek
+              </button>
+            } @else {
+              <span class="muted small"><app-icon name="lock" [size]="14" /> Onaylanmış kayıt değiştirilemez.</span>
+            }
+          </div>
+        </article>
+      }
+    </div>
+
+    <app-pager [page]="page()" [totalPages]="totalPages()" (pageChange)="load($event)" />
+  }
+</div>
+
+@if (dialog() !== null) {
+  <app-modal [title]="dialog() === 'new' ? 'Yeni defter kaydı' : 'Kaydı düzenle'" (closed)="closeDialog()">
+    <form class="stack" [formGroup]="form" (submit)="$event.preventDefault(); save()" novalidate>
+      <div class="field">
+        <label for="entryDate">Tarih</label>
+        <input id="entryDate" class="input" type="date" formControlName="noteDate" [max]="todayValue" />
+        <span class="hint">Günde tek kayıt yazılabilir.</span>
+      </div>
+
+      <div class="field">
+        <label for="entryTitle">Başlık</label>
+        <input
+          id="entryTitle"
+          class="input"
+          type="text"
+          formControlName="title"
+          maxlength="150"
+          placeholder="Örn. Migration ve veritabanı şeması"
+          [class.invalid]="form.controls.title.touched && form.controls.title.invalid"
+        />
+        @if (form.controls.title.touched && form.controls.title.invalid) {
+          <span class="field-error">Başlık en az 2 karakter olmalı.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="entryContent">Yapılan iş</label>
+        <textarea
+          id="entryContent"
+          class="input"
+          rows="5"
+          formControlName="content"
+          maxlength="4000"
+          placeholder="Bugün neler yaptın?"
+          [class.invalid]="form.controls.content.touched && form.controls.content.invalid"
+        ></textarea>
+        <div class="row-between">
+          @if (form.controls.content.touched && form.controls.content.invalid) {
+            <span class="field-error">Yapılan iş boş olamaz.</span>
+          } @else {
+            <span></span>
+          }
+          <span class="hint">{{ form.controls.content.value.length }} / 4000</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="entryLearned">Öğrenilenler <span class="muted">(isteğe bağlı)</span></label>
+        <textarea id="entryLearned" class="input" rows="3" formControlName="learned" maxlength="2000" placeholder="Bugün ne öğrendin?"></textarea>
+      </div>
+
+      <div class="two">
+        <div class="field">
+          <label for="entryHours">Süre (saat) <span class="muted">(isteğe bağlı)</span></label>
+          <input
+            id="entryHours"
+            class="input"
+            type="number"
+            step="0.25"
+            min="0.25"
+            max="24"
+            inputmode="decimal"
+            formControlName="hoursSpent"
+            placeholder="Örn. 7,5"
+            [class.invalid]="form.controls.hoursSpent.touched && form.controls.hoursSpent.invalid"
+          />
+          @if (form.controls.hoursSpent.touched && form.controls.hoursSpent.invalid) {
+            <span class="field-error">0,25 ile 24 arasında olmalı.</span>
+          }
+        </div>
+        <div class="field">
+          <label for="entryTags">Etiketler <span class="muted">(virgülle)</span></label>
+          <input id="entryTags" class="input" type="text" formControlName="tags" maxlength="200" placeholder="EF Core, JWT" />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeDialog()">Vazgeç</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          @if (saving()) { <span class="spinner"></span> }
+          {{ dialog() === 'new' ? 'Taslak olarak kaydet' : 'Kaydet' }}
+        </button>
+      </div>
+    </form>
+  </app-modal>
+}
